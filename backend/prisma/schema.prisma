@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ───────────────────────────────────────────
+enum Status {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// ─── ROLES ───────────────────────────────────────────
+model Role {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+
+  users       User[]
+
+  @@map("roles")
+}
+
+// ─── USERS ───────────────────────────────────────────
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  roleId    Int
+  role      Role     @relation(fields: [roleId], references: [id])
+  createdAt DateTime @default(now())
+
+  ownedProjects   Project[]        @relation("OwnedProjects")
+  projectMembers  ProjectMember[]
+  taskAssignments TaskAssignment[]
+  comments        Comment[]
+  notifications   Notification[]
+
+  @@map("users")
+}
+
+// ─── PROJECTS ────────────────────────────────────────
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  ownerId     Int
+  owner       User     @relation("OwnedProjects", fields: [ownerId], references: [id])
+  createdAt   DateTime @default(now())
+
+  tasks   Task[]
+  members ProjectMember[]
+
+  @@map("projects")
+}
+
+// ─── PROJECT MEMBERS ─────────────────────────────────
+model ProjectMember {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  joinedAt  DateTime @default(now())
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+// ─── TASKS ───────────────────────────────────────────
+model Task {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  projectId   Int
+  project     Project   @relation(fields: [projectId], references: [id])
+  status      Status    @default(TODO)
+  priority    Priority  @default(MEDIUM)
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  assignees TaskAssignment[]
+  comments  Comment[]
+
+  @@map("tasks")
+}
+
+// ─── TASK ASSIGNMENTS ────────────────────────────────
+model TaskAssignment {
+  id         Int      @id @default(autoincrement())
+  taskId     Int
+  task       Task     @relation(fields: [taskId], references: [id])
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  assignedAt DateTime @default(now())
+
+  @@unique([taskId, userId])
+  @@map("task_assignments")
+}
+
+// ─── COMMENTS ────────────────────────────────────────
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  taskId    Int
+  task      Task     @relation(fields: [taskId], references: [id])
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@map("comments")
+}
+
+// ─── NOTIFICATIONS ───────────────────────────────────
+model Notification {
+  id        Int      @id @default(autoincrement())
+  message   String
+  isRead    Boolean  @default(false)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
