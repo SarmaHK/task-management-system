@@ -20,6 +20,25 @@ enum Priority {
   HIGH
 }
 
+enum ProjectRole {
+  PROJECT_MANAGER
+  COLLABORATOR
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  COMPLETED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  STATUS_CHANGED
+  DEADLINE_ALERT
+  COMMENT_ADDED
+  ADMIN_UPDATE
+}
+
 // ─── ROLES ───────────────────────────────────────────
 model Role {
   id          Int     @id @default(autoincrement())
@@ -33,31 +52,40 @@ model Role {
 
 // ─── USERS ───────────────────────────────────────────
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  roleId    Int
-  role      Role     @relation(fields: [roleId], references: [id])
-  createdAt DateTime @default(now())
+  id               Int       @id @default(autoincrement())
+  name             String
+  email            String    @unique
+  password         String
+  roleId           Int
+  role             Role      @relation(fields: [roleId], references: [id])
+  isActive         Boolean   @default(true)
+  firstLogin       Boolean   @default(true)
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
 
   ownedProjects   Project[]        @relation("OwnedProjects")
   projectMembers  ProjectMember[]
   taskAssignments TaskAssignment[]
+  createdTasks    Task[]           @relation("CreatedTasks")
   comments        Comment[]
   notifications   Notification[]
+  attachments     Attachment[]
+  taskActivities  TaskActivity[]
 
   @@map("users")
 }
 
 // ─── PROJECTS ────────────────────────────────────────
 model Project {
-  id          Int      @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   name        String
   description String?
   ownerId     Int
-  owner       User     @relation("OwnedProjects", fields: [ownerId], references: [id])
-  createdAt   DateTime @default(now())
+  owner       User          @relation("OwnedProjects", fields: [ownerId], references: [id])
+  status      ProjectStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   tasks   Task[]
   members ProjectMember[]
@@ -67,12 +95,13 @@ model Project {
 
 // ─── PROJECT MEMBERS ─────────────────────────────────
 model ProjectMember {
-  id        Int      @id @default(autoincrement())
+  id        Int         @id @default(autoincrement())
   projectId Int
-  project   Project  @relation(fields: [projectId], references: [id])
+  project   Project     @relation(fields: [projectId], references: [id])
   userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  joinedAt  DateTime @default(now())
+  user      User        @relation(fields: [userId], references: [id])
+  role      ProjectRole @default(COLLABORATOR)
+  joinedAt  DateTime    @default(now())
 
   @@unique([projectId, userId])
   @@map("project_members")
@@ -85,14 +114,18 @@ model Task {
   description String?
   projectId   Int
   project     Project   @relation(fields: [projectId], references: [id])
+  creatorId   Int
+  creator     User      @relation("CreatedTasks", fields: [creatorId], references: [id])
   status      Status    @default(TODO)
   priority    Priority  @default(MEDIUM)
   dueDate     DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  assignees TaskAssignment[]
-  comments  Comment[]
+  assignees      TaskAssignment[]
+  comments       Comment[]
+  attachments    Attachment[]
+  taskActivities TaskActivity[]
 
   @@map("tasks")
 }
@@ -119,18 +152,49 @@ model Comment {
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("comments")
 }
 
-// ─── NOTIFICATIONS ───────────────────────────────────
-model Notification {
+// ─── ATTACHMENTS ─────────────────────────────────────
+model Attachment {
   id        Int      @id @default(autoincrement())
-  message   String
-  isRead    Boolean  @default(false)
+  filename  String
+  fileUrl   String
+  taskId    Int
+  task      Task     @relation(fields: [taskId], references: [id])
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
 
+  @@map("attachments")
+}
+
+// ─── NOTIFICATIONS ───────────────────────────────────
+model Notification {
+  id        Int              @id @default(autoincrement())
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  userId    Int
+  user      User             @relation(fields: [userId], references: [id])
+  taskId    Int?
+  createdAt DateTime         @default(now())
+
   @@map("notifications")
+}
+
+// ─── TASK ACTIVITY LOG ───────────────────────────────
+model TaskActivity {
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  task        Task     @relation(fields: [taskId], references: [id])
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  action      String
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@map("task_activities")
 }
