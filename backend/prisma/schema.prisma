@@ -39,13 +39,22 @@ enum NotificationType {
   ADMIN_UPDATE
 }
 
+enum ActivityType {
+  CREATED
+  UPDATED
+  ASSIGNED
+  COMMENTED
+  COMPLETED
+  DELETED
+}
+
 // ─── ROLES ───────────────────────────────────────────
 model Role {
   id          Int     @id @default(autoincrement())
   name        String  @unique
   description String?
 
-  users       User[]
+  users User[]
 
   @@map("roles")
 }
@@ -84,6 +93,7 @@ model Project {
   ownerId     Int
   owner       User          @relation("OwnedProjects", fields: [ownerId], references: [id])
   status      ProjectStatus @default(ACTIVE)
+  endDate     DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -187,14 +197,14 @@ model Notification {
 
 // ─── TASK ACTIVITY LOG ───────────────────────────────
 model TaskActivity {
-  id          Int      @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   taskId      Int
-  task        Task     @relation(fields: [taskId], references: [id])
+  task        Task         @relation(fields: [taskId], references: [id])
   userId      Int
-  user        User     @relation(fields: [userId], references: [id])
-  action      String
+  user        User         @relation(fields: [userId], references: [id])
+  action      ActivityType
   description String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime     @default(now())
 
   @@map("task_activities")
 }
