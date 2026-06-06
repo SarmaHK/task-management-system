@@ -46,7 +46,8 @@ Administrator, Project Manager
 ```json
 {
   "name": "Task Management System",
-  "description": "Final Year Group Project"
+  "description": "Final Year Group Project",
+  "endDate": "2026-12-31T23:59:59.999Z"
 }
 ```
 
@@ -57,6 +58,7 @@ Administrator, Project Manager
 | name        | Required                        |
 | name        | Minimum 3 characters            |
 | description | Optional                        |
+| endDate     | Optional, Must be a valid future ISO 8601 date string |
 | ownerId     | Derived from authenticated user |
 
 ## System Behavior
@@ -77,7 +79,8 @@ Administrator, Project Manager
   "data": {
     "id": 1,
     "name": "Task Management System",
-    "status": "ACTIVE"
+    "status": "ACTIVE",
+    "endDate": "2026-12-31T23:59:59.999Z"
   }
 }
 ```
@@ -144,6 +147,7 @@ Administrator, Project Manager
       "id": 1,
       "name": "Task Management System",
       "status": "ACTIVE",
+      "endDate": "2026-12-31T23:59:59.999Z",
       "createdAt": "2026-06-05T10:00:00Z"
     }
   ]
@@ -190,6 +194,7 @@ Administrator, Project Manager, Project Member
     "name": "Task Management System",
     "description": "Final Year Group Project",
     "status": "ACTIVE",
+    "endDate": "2026-12-31T23:59:59.999Z",
     "createdAt": "2026-06-05T10:00:00Z"
   }
 }
@@ -233,16 +238,18 @@ Administrator, Project Manager
 ```json
 {
   "name": "Updated Project Name",
-  "description": "Updated Description"
+  "description": "Updated Description",
+  "endDate": "2026-12-31T23:59:59.999Z"
 }
 ```
 
 ## Validation Rules
 
-| Field | Rule                 |
-| ----- | -------------------- |
-| name  | Required             |
-| name  | Minimum 3 characters |
+| Field   | Rule                 |
+| ------- | -------------------- |
+| name    | Required             |
+| name    | Minimum 3 characters |
+| endDate | Optional, Must be a valid future ISO 8601 date string |
 
 ## Success Response
 

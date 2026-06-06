@@ -336,7 +336,7 @@ Administrator, Project Manager
   "success": true,
   "data": [
     {
-      "action": "COMMENT_UPDATED",
+      "action": "UPDATED",
       "timestamp": "2026-06-05T11:00:00Z",
       "updatedBy": "John Doe"
     }
@@ -405,9 +405,9 @@ Notification Type:
 The following actions create task activity records:
 
 ```text
-COMMENT_CREATED
-COMMENT_UPDATED
-COMMENT_DELETED
+COMMENTED
+UPDATED
+DELETED
 ```
 
 ---

@@ -637,6 +637,8 @@ Rules:
 
 * Name required
 * Minimum 3 characters
+* endDate optional
+* Must be a valid future date following ISO DateTime format
 
 ---
 

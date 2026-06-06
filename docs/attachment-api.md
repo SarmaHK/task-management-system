@@ -431,8 +431,8 @@ Notification Type:
 The following actions create task activity records:
 
 ```text
-ATTACHMENT_UPLOADED
-ATTACHMENT_DELETED
+UPDATED
+DELETED
 ```
 
 ---

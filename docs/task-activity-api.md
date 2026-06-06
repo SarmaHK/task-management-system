@@ -1,63 +1,55 @@
-# Notification Module - Detailed API Specification
+# Task Activity Module - Detailed API Specification
 
 ## Module Purpose
 
-The Notification Module provides real-time and stored notifications to users regarding task assignments, status updates, comments, deadlines, and administrative announcements.
-
-The module supports:
-
-* REST API for notification management
-* WebSocket communication for real-time updates
-* Notification history
-* Read/Unread tracking
-* Offline notification delivery
+The Task Activity Module maintains an audit trail of all actions performed on tasks. This supports tracking, accountability, history logs, and project monitoring.
 
 ---
 
 ## Access Control
 
-| Role            | Access Level |
-| --------------- | ------------ |
-| Administrator   | Full Access  |
-| Project Manager | Full Access  |
-| Collaborator    | Full Access  |
+| Role            | Access Level                                   |
+| --------------- | ---------------------------------------------- |
+| Administrator   | Full Access (including cross-user audits)     |
+| Project Manager | Full Access for tasks in managed projects       |
+| Collaborator    | View activities for assigned tasks only         |
 
 All endpoints require:
 
 * Valid JWT Token
-* User Authentication
-
-Notifications are always user-specific.
+* Task access validation
+* Project membership validation
 
 ---
 
-# Notification Types
+# Activity Type Enum Values
 
-Based on Prisma Schema:
+Based on the finalized Prisma Schema:
 
 ```json
 [
-  "TASK_ASSIGNED",
-  "STATUS_CHANGED",
-  "DEADLINE_ALERT",
-  "COMMENT_ADDED",
-  "ADMIN_UPDATE"
+  "CREATED",
+  "UPDATED",
+  "ASSIGNED",
+  "COMMENTED",
+  "COMPLETED",
+  "DELETED"
 ]
 ```
 
 ---
 
-# 1. View Notifications
+# 1. View Task Activity Log
 
 ## Endpoint
 
 ```http
-GET /api/notifications
+GET /api/tasks/:id/activity
 ```
 
 ## Purpose
 
-Retrieve notifications belonging to the authenticated user.
+Retrieve all activity logs associated with a task.
 
 ## Authentication
 
@@ -65,14 +57,20 @@ JWT Required
 
 ## Authorization
 
-Authenticated Users
+Project Manager, Collaborator
+
+## Path Parameters
+
+| Parameter | Description |
+| --------- | ----------- |
+| id        | Task ID     |
 
 ## Query Parameters
 
 ```http
 ?page=1
 &limit=10
-&isRead=false
+&action=UPDATED
 ```
 
 ## Success Response
@@ -84,40 +82,31 @@ Authenticated Users
   "success": true,
   "data": [
     {
-      "id": 1,
-      "message": "You have been assigned a new task",
-      "type": "TASK_ASSIGNED",
-      "isRead": false,
+      "id": 101,
+      "taskId": 15,
+      "userId": 5,
+      "userName": "John Doe",
+      "action": "UPDATED",
+      "description": "Task description updated",
       "createdAt": "2026-06-05T10:00:00Z"
     }
   ]
 }
 ```
 
-## Error Responses
-
-### 401 Unauthorized
-
-```json
-{
-  "success": false,
-  "message": "Authentication required"
-}
-```
-
 ---
 
-# 2. View Notification History
+# 2. View Task Status Changes
 
 ## Endpoint
 
 ```http
-GET /api/notifications/history
+GET /api/tasks/:id/activity/status-changes
 ```
 
 ## Purpose
 
-Retrieve complete notification history for the authenticated user.
+Retrieve only the status change activities for a task.
 
 ## Authentication
 
@@ -125,52 +114,13 @@ JWT Required
 
 ## Authorization
 
-Authenticated Users
-
-## Success Response
-
-**200 OK**
-
-```json
-{
-  "success": true,
-  "data": []
-}
-```
-
----
-
-# 3. Mark Notification as Read
-
-## Endpoint
-
-```http
-PATCH /api/notifications/:id/read
-```
-
-## Purpose
-
-Mark a specific notification as read.
-
-## Authentication
-
-JWT Required
-
-## Authorization
-
-Notification Owner
+Project Manager, Collaborator
 
 ## Path Parameters
 
-| Parameter | Description     |
-| --------- | --------------- |
-| id        | Notification ID |
-
-## System Behavior
-
-```text
-isRead = true
-```
+| Parameter | Description |
+| --------- | ----------- |
+| id        | Task ID     |
 
 ## Success Response
 
@@ -179,34 +129,33 @@ isRead = true
 ```json
 {
   "success": true,
-  "message": "Notification marked as read"
-}
-```
-
-## Error Responses
-
-### 404 Not Found
-
-```json
-{
-  "success": false,
-  "message": "Notification not found"
+  "data": [
+    {
+      "id": 102,
+      "taskId": 15,
+      "userId": 5,
+      "userName": "John Doe",
+      "action": "COMPLETED",
+      "description": "Task status changed to COMPLETED",
+      "createdAt": "2026-06-05T11:30:00Z"
+    }
+  ]
 }
 ```
 
 ---
 
-# 4. Mark All Notifications as Read
+# 3. View Task Assignment History
 
 ## Endpoint
 
 ```http
-PATCH /api/notifications/read-all
+GET /api/tasks/:id/activity/assignments
 ```
 
 ## Purpose
 
-Mark all notifications belonging to the current user as read.
+Retrieve assignment-related activity logs for a task.
 
 ## Authentication
 
@@ -214,14 +163,13 @@ JWT Required
 
 ## Authorization
 
-Authenticated Users
+Project Manager
 
-## System Behavior
+## Path Parameters
 
-```text
-All user notifications:
-isRead = true
-```
+| Parameter | Description |
+| --------- | ----------- |
+| id        | Task ID     |
 
 ## Success Response
 
@@ -230,23 +178,33 @@ isRead = true
 ```json
 {
   "success": true,
-  "message": "All notifications marked as read"
+  "data": [
+    {
+      "id": 103,
+      "taskId": 15,
+      "userId": 3,
+      "userName": "Sarah Manager",
+      "action": "ASSIGNED",
+      "description": "Assigned task to John Doe",
+      "createdAt": "2026-06-05T09:15:00Z"
+    }
+  ]
 }
 ```
 
 ---
 
-# 5. Get Unread Notification Count
+# 4. View Task Comment Activities
 
 ## Endpoint
 
 ```http
-GET /api/notifications/unread-count
+GET /api/tasks/:id/activity/comments
 ```
 
 ## Purpose
 
-Retrieve total unread notification count.
+Retrieve comment-related activity logs for a task.
 
 ## Authentication
 
@@ -254,7 +212,13 @@ JWT Required
 
 ## Authorization
 
-Authenticated Users
+Project Manager, Collaborator
+
+## Path Parameters
+
+| Parameter | Description |
+| --------- | ----------- |
+| id        | Task ID     |
 
 ## Success Response
 
@@ -263,25 +227,33 @@ Authenticated Users
 ```json
 {
   "success": true,
-  "data": {
-    "unreadCount": 5
-  }
+  "data": [
+    {
+      "id": 104,
+      "taskId": 15,
+      "userId": 5,
+      "userName": "John Doe",
+      "action": "COMMENTED",
+      "description": "Added comment: 'Authentication API has been completed.'",
+      "createdAt": "2026-06-05T10:05:00Z"
+    }
+  ]
 }
 ```
 
 ---
 
-# 6. Delete Notification
+# 5. View Task Attachment Activities
 
 ## Endpoint
 
 ```http
-DELETE /api/notifications/:id
+GET /api/tasks/:id/activity/attachments
 ```
 
 ## Purpose
 
-Delete a notification.
+Retrieve attachment-related activity logs (upload, deletion) for a task.
 
 ## Authentication
 
@@ -289,7 +261,13 @@ JWT Required
 
 ## Authorization
 
-Notification Owner
+Project Manager, Collaborator
+
+## Path Parameters
+
+| Parameter | Description |
+| --------- | ----------- |
+| id        | Task ID     |
 
 ## Success Response
 
@@ -298,197 +276,67 @@ Notification Owner
 ```json
 {
   "success": true,
-  "message": "Notification deleted successfully"
+  "data": [
+    {
+      "id": 105,
+      "taskId": 15,
+      "userId": 5,
+      "userName": "John Doe",
+      "action": "UPDATED",
+      "description": "Uploaded attachment: project-design.pdf",
+      "createdAt": "2026-06-05T10:10:00Z"
+    }
+  ]
 }
 ```
 
 ---
 
-# WebSocket Notifications
+# 6. Audit User Actions
 
 ## Endpoint
 
-```text
-ws://domain/ws/notifications
+```http
+GET /api/users/:id/activity
 ```
 
-Production:
+## Purpose
 
-```text
-wss://domain/ws/notifications
-```
+Retrieve all activity logs performed by a specific user across all tasks.
 
----
+## Authentication
 
-# WebSocket Authentication
+JWT Required
 
-Client must provide JWT token during connection.
+## Authorization
 
-Example:
+Administrator Only
+
+## Path Parameters
+
+| Parameter | Description |
+| --------- | ----------- |
+| id        | User ID     |
+
+## Success Response
+
+**200 OK**
 
 ```json
 {
-  "token": "jwt_token"
+  "success": true,
+  "data": [
+    {
+      "id": 101,
+      "taskId": 15,
+      "userId": 5,
+      "action": "UPDATED",
+      "description": "Task description updated",
+      "createdAt": "2026-06-05T10:00:00Z"
+    }
+  ]
 }
 ```
-
----
-
-# WebSocket Event: Task Assigned
-
-## Event Name
-
-```text
-TASK_ASSIGNED
-```
-
-## Trigger
-
-When a user is assigned to a task.
-
-## Event Payload
-
-```json
-{
-  "type": "TASK_ASSIGNED",
-  "message": "You have been assigned a task",
-  "taskId": 15,
-  "timestamp": "2026-06-05T10:00:00Z"
-}
-```
-
----
-
-# WebSocket Event: Status Changed
-
-## Event Name
-
-```text
-STATUS_CHANGED
-```
-
-## Trigger
-
-When task status changes.
-
-## Event Payload
-
-```json
-{
-  "type": "STATUS_CHANGED",
-  "message": "Task status updated",
-  "taskId": 15,
-  "newStatus": "COMPLETED"
-}
-```
-
----
-
-# WebSocket Event: Deadline Alert
-
-## Event Name
-
-```text
-DEADLINE_ALERT
-```
-
-## Trigger
-
-Before due date expiration.
-
-Example:
-
-```text
-24 Hours Before Due Date
-```
-
-## Event Payload
-
-```json
-{
-  "type": "DEADLINE_ALERT",
-  "message": "Task deadline approaching",
-  "taskId": 15
-}
-```
-
----
-
-# WebSocket Event: Comment Added
-
-## Event Name
-
-```text
-COMMENT_ADDED
-```
-
-## Trigger
-
-When a new comment is added to a task.
-
-## Event Payload
-
-```json
-{
-  "type": "COMMENT_ADDED",
-  "message": "New comment added",
-  "taskId": 15,
-  "commentId": 22
-}
-```
-
----
-
-# WebSocket Event: Administrative Update
-
-## Event Name
-
-```text
-ADMIN_UPDATE
-```
-
-## Trigger
-
-Administrative announcements.
-
-## Event Payload
-
-```json
-{
-  "type": "ADMIN_UPDATE",
-  "message": "System maintenance scheduled"
-}
-```
-
----
-
-# Offline Notification Handling
-
-If user is offline:
-
-```text
-Store notification in database
-```
-
-When user reconnects:
-
-```text
-Retrieve unread notifications
-Deliver pending notifications
-```
-
----
-
-# Notification Generation Rules
-
-| Event                | Notification Type |
-| -------------------- | ----------------- |
-| Task Assigned        | TASK_ASSIGNED     |
-| Task Reassigned      | TASK_ASSIGNED     |
-| Task Status Updated  | STATUS_CHANGED    |
-| Comment Added        | COMMENT_ADDED     |
-| Deadline Approaching | DEADLINE_ALERT    |
-| Admin Announcement   | ADMIN_UPDATE      |
 
 ---
 
@@ -496,20 +344,19 @@ Deliver pending notifications
 
 Prisma Model:
 
-```text
-Notification
-```
+```prisma
+model TaskActivity {
+  id          Int          @id @default(autoincrement())
+  taskId      Int
+  task        Task         @relation(fields: [taskId], references: [id])
+  userId      Int
+  user        User         @relation(fields: [userId], references: [id])
+  action      ActivityType
+  description String?
+  createdAt   DateTime     @default(now())
 
-Fields Used:
-
-```text
-id
-message
-type
-isRead
-userId
-taskId
-createdAt
+  @@map("task_activities")
+}
 ```
 
 ---
@@ -517,12 +364,10 @@ createdAt
 # Security Requirements
 
 * JWT Authentication Required
-* User-specific notification delivery
-* Unauthorized subscription prevention
-* Secure WebSocket communication (WSS)
-* Notification ownership validation
-* Automatic reconnection support
-* Offline notification persistence
+* Project membership validation required
+* Role-based access constraints enforced
+* Input validation on query parameters (e.g. limit, page)
+* Prevent path traversal or unauthorized access to tasks not belonging to user's projects
 
 ---
 
