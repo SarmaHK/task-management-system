@@ -1,16 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PasswordPolicy from '../components/PasswordPolicy';
+import { useAuth } from '../context/AuthContext';
 
 export default function ForceResetPassword() {
-  const [newPassword,     setNewPassword]     = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNew,         setShowNew]         = useState(false);
-  const [showConfirm,     setShowConfirm]     = useState(false);
-  const [isLoading,       setIsLoading]       = useState(false);
-  const [error,           setError]           = useState('');
-  const [success,         setSuccess]         = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [newPassword,       setNewPassword]       = useState('');
+  const [confirmPassword,   setConfirmPassword]   = useState('');
+  const [showTemporary,     setShowTemporary]     = useState(false);
+  const [showNew,           setShowNew]           = useState(false);
+  const [showConfirm,       setShowConfirm]       = useState(false);
+  const [isLoading,         setIsLoading]         = useState(false);
+  const [error,             setError]             = useState('');
+  const [success,           setSuccess]           = useState(false);
   const navigate = useNavigate();
+  const { firstLoginReset } = useAuth();
 
   const allRulesPassed = [
     newPassword.length >= 8,
@@ -33,6 +37,10 @@ export default function ForceResetPassword() {
     e.preventDefault();
     setError('');
 
+    if (!temporaryPassword) {
+      setError('Please enter your temporary password.');
+      return;
+    }
     if (!allRulesPassed) {
       setError('Your password does not meet all the requirements below.');
       return;
@@ -43,15 +51,15 @@ export default function ForceResetPassword() {
     }
 
     setIsLoading(true);
-    // Simulate network call
-    await new Promise((res) => setTimeout(res, 1200));
-    setIsLoading(false);
-    
-    // Trigger the success toast notification
-    setSuccess(true);
-
-    // Redirect to login after a brief delay so they can read the toast
-    setTimeout(() => navigate('/login'), 2200);
+    try {
+      await firstLoginReset(temporaryPassword, newPassword);
+      setIsLoading(false);
+      setSuccess(true);
+      setTimeout(() => navigate('/login'), 2200);
+    } catch (err) {
+      setError(err.message || 'Failed to update password. Please check your temporary password.');
+      setIsLoading(false);
+    }
   };
 
   const inputCls = 'w-full pl-[38px] pr-3.5 py-[10px] text-[13.5px] text-gray-900 bg-gray-50 border-[1.5px] border-gray-200 rounded-[10px] outline-none transition-all duration-150 font-medium placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:shadow-[0_0_0_3px_rgba(99,102,241,0.12)]';
@@ -174,6 +182,45 @@ export default function ForceResetPassword() {
           )}
 
           <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="temporaryPassword" className="text-[12.5px] font-semibold text-gray-700 tracking-wide">
+                Temporary password
+              </label>
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" width="15" height="15" viewBox="0 0 16 16" fill="none">
+                  <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+                  <path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                  <circle cx="8" cy="10.5" r="1" fill="currentColor"/>
+                </svg>
+                <input
+                  id="temporaryPassword"
+                  type={showTemporary ? 'text' : 'password'}
+                  required
+                  placeholder="Enter temporary password"
+                  value={temporaryPassword}
+                  onChange={(e) => setTemporaryPassword(e.target.value)}
+                  className={`${inputCls} pr-10`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowTemporary(!showTemporary)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-500 p-1 rounded transition-colors"
+                >
+                  {showTemporary ? (
+                    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                      <path d="M2 2l12 12M6.7 6.8A2 2 0 0011 9.3M5 4.6C3 5.8 1.5 7.7 1.5 8s2.3 4 6.5 4c1.3 0 2.5-.4 3.5-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                      <path d="M13.2 10.7C14.3 9.6 14.5 8.3 14.5 8c0-.3-2.3-4-6.5-4-.8 0-1.5.1-2.2.3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    </svg>
+                  ) : (
+                    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 4C3.8 4 1.5 7.7 1.5 8s2.3 4 6.5 4 6.5-3.7 6.5-4-2.3-4-6.5-4z" stroke="currentColor" strokeWidth="1.2"/>
+                      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="newPassword" className="text-[12.5px] font-semibold text-gray-700 tracking-wide">

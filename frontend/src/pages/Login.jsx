@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
   const [email,        setEmail]        = useState('');
@@ -10,6 +11,7 @@ export default function Login() {
   const [success,      setSuccess]      = useState(false);
   const shineRef = useRef(null);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const runShine = () => {
     if (!shineRef.current) return;
@@ -33,26 +35,21 @@ export default function Login() {
     setIsLoading(true);
     runShine();
 
-    // Simulate network delay
-    await new Promise((res) => setTimeout(res, 1300));
-
-    // 2. Secured Reset Backdoor: Requires EXACT email AND password
-    if (email === 'admin@taskflow.com' && password === 'admin123') {
+    try {
+      const data = await login(email, password);
       setSuccess(true);
-      setTimeout(() => navigate('/setup-password'), 900);
-      return;
-    }
-
-    // 3. Secured Standard Login: Requires EXACT email AND password
-    if (email !== 'test@example.com' || password !== 'password123') {
-      setError('Invalid email or password. Please try again.');
+      
+      setTimeout(() => {
+        if (data.user?.firstLogin) {
+          navigate('/setup-password');
+        } else {
+          navigate('/dashboard');
+        }
+      }, 900);
+    } catch (err) {
+      setError(err.message || 'Invalid email or password. Please try again.');
       setIsLoading(false);
-      return;
     }
-
-    setIsLoading(false);
-    console.log('Standard login submitted:', { email, password });
-    // navigate('/dashboard');
   };
   
   return (
