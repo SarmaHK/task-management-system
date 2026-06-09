@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import PasswordPolicy from '../components/PasswordPolicy';
+import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
   const [name,            setName]            = useState('');
@@ -13,6 +14,7 @@ export default function Register() {
   const [error,           setError]           = useState('');
   const [success,         setSuccess]         = useState(false); // Added success state
   const navigate = useNavigate();
+  const { register } = useAuth();
 
   const passwordsMatch    = confirmPassword && password === confirmPassword;
   const passwordsMismatch = confirmPassword && password !== confirmPassword;
@@ -57,16 +59,19 @@ export default function Register() {
 
     // 4. Submit form
     setIsLoading(true);
-    // TODO Phase 2: replace with Axios POST /api/auth/register
-    await new Promise((res) => setTimeout(res, 1400));
-    setIsLoading(false);
-    
-    // 5. Trigger Success Toast & Redirect
-    setSuccess(true);
-    console.log('Account registered successfully:', { name, email, password });
-    
-    // Redirect to login after 2 seconds
-    setTimeout(() => navigate('/login'), 2200);
+    try {
+      await register(name, email, password);
+      setIsLoading(false);
+      
+      // 5. Trigger Success Toast & Redirect
+      setSuccess(true);
+      
+      // Redirect to login after 2 seconds
+      setTimeout(() => navigate('/login'), 2200);
+    } catch (err) {
+      setError(err.message || 'Registration failed. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   /* shared input class */
