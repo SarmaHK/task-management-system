@@ -1,7 +1,10 @@
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import DashboardLayout from '../components/DashboardLayout';
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   const getRoleBadgeColor = () => {
     const role = (user?.role || '').toLowerCase();
@@ -31,38 +34,8 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-indigo-50/40 font-sans">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-indigo-100 px-6 py-4 flex items-center justify-between sticky top-0 z-40 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="grid grid-cols-2 gap-[3px] w-[22px] h-[22px]">
-            <span className="rounded-[3px] bg-indigo-600 block" />
-            <span className="rounded-[3px] bg-indigo-400 block" />
-            <span className="rounded-[3px] bg-indigo-300 block" />
-            <span className="rounded-[3px] bg-indigo-500 block" />
-          </div>
-          <span className="text-[17px] font-bold text-indigo-950 tracking-tight">TaskFlow</span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden sm:block">
-            <p className="text-[13.5px] font-bold text-indigo-950 leading-none mb-0.5">{user?.name}</p>
-            <p className="text-[11px] text-gray-500 font-medium">{user?.email}</p>
-          </div>
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 px-3.5 py-2 border border-gray-200 text-gray-700 font-semibold text-[13px] rounded-lg bg-white shadow-sm cursor-pointer transition-colors duration-150 hover:bg-gray-50 hover:text-red-600 hover:border-red-200"
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="stroke-current">
-              <path d="M10 3h2.5a1.5 1.5 0 011.5 1.5v7a1.5 1.5 0 01-1.5 1.5H10M6.5 11.5L10 8 6.5 4.5M10 8H2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Sign out
-          </button>
-        </div>
-      </nav>
-
-      {/* Main Dashboard Layout */}
-      <main className="max-w-6xl mx-auto px-6 py-10 flex flex-col gap-8">
+    <DashboardLayout>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
         
         {/* Welcome Header Banner */}
         <section className="bg-gradient-to-r from-indigo-900 to-indigo-800 rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden shadow-md animate-fadeUp">
@@ -91,8 +64,17 @@ export default function Dashboard() {
             </div>
             
             <div className="flex flex-wrap gap-3 flex-shrink-0">
-              <button className="px-4 py-2.5 bg-white text-indigo-950 font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-transform duration-100 hover:scale-[1.02]">
-                🆕 New Project
+              <button
+                onClick={() => navigate('/tasks/create')}
+                className="px-4 py-2.5 bg-white text-indigo-950 font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-transform duration-100 hover:scale-[1.02]"
+              >
+                🆕 New Task
+              </button>
+              <button
+                onClick={() => navigate('/tasks')}
+                className="px-4 py-2.5 bg-indigo-700/50 border border-indigo-500/40 text-white font-bold text-[13.5px] rounded-xl cursor-pointer transition-transform duration-100 hover:scale-[1.02]"
+              >
+                📋 My Tasks
               </button>
             </div>
           </div>
@@ -142,32 +124,31 @@ export default function Dashboard() {
 
             <div className="flex flex-col justify-between p-4 border border-gray-100 rounded-xl">
               <div>
-                <h4 className="text-[14px] font-bold text-indigo-950 mb-1">Quick Configuration Notes</h4>
+                <h4 className="text-[14px] font-bold text-indigo-950 mb-1">Quick Actions</h4>
                 <p className="text-[12.5px] text-gray-500 leading-relaxed font-medium">
-                  Authentication is fully configured with JWT. Refresh tokens are secured via HTTP-Only cookies. You can implement routing logic based on your custom role rules.
+                  Authentication is fully configured with JWT. Refresh tokens are secured via HTTP-Only cookies.
                 </p>
               </div>
               
               <div className="mt-4 pt-3.5 border-t border-gray-100 flex gap-3">
-                <button className="px-3.5 py-2 bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold text-[12px] rounded-lg cursor-pointer transition-colors hover:bg-indigo-100">
-                  Change Password
+                <button
+                  onClick={() => navigate('/tasks')}
+                  className="px-3.5 py-2 bg-indigo-600 text-white font-bold text-[12px] rounded-lg cursor-pointer transition-colors hover:bg-indigo-500 shadow-sm"
+                >
+                  View All Tasks
+                </button>
+                <button
+                  onClick={() => navigate('/tasks/create')}
+                  className="px-3.5 py-2 bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold text-[12px] rounded-lg cursor-pointer transition-colors hover:bg-indigo-100"
+                >
+                  + New Task
                 </button>
               </div>
             </div>
           </div>
         </section>
-
-      </main>
-
-      <style>{`
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeUp {
-          animation: fadeUp 0.4s ease both;
-        }
-      `}</style>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
+

@@ -1,0 +1,104 @@
+/**
+ * AppRoutes.jsx — Centralised routing with protected route guards
+ */
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+// Auth pages
+import Login from '../pages/Login';
+import Register from '../pages/Register';
+import ForceResetPassword from '../pages/ForceResetPassword';
+
+// Protected pages
+import Dashboard from '../pages/Dashboard';
+import TaskList from '../pages/tasks/TaskList';
+import CreateTask from '../pages/tasks/CreateTask';
+import EditTask from '../pages/tasks/EditTask';
+
+// ── Auth guard wrapper ────────────────────────────────────────────────────
+function RequireAuth({ children, allowedRoles }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-indigo-50">
+        <div className="w-10 h-10 border-4 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin mb-4" />
+        <span className="text-[14px] text-indigo-800 font-semibold tracking-wide">Verifying session…</span>
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.firstLogin) return <Navigate to="/setup-password" replace />;
+
+  if (allowedRoles && allowedRoles.length > 0) {
+    const userRole = (user.role || '').toLowerCase();
+    const hasRole = allowedRoles.some((r) => r.toLowerCase() === userRole);
+    if (!hasRole) return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+}
+
+// ── Redirect if already logged in ─────────────────────────────────────────
+function PublicOnly({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (user && !user.firstLogin) return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
+const ALL_ROLES = ['Administrator', 'Project Manager', 'Collaborator'];
+
+export default function AppRoutes() {
+  return (
+    <Routes>
+      {/* Base redirect */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+
+      {/* Public auth routes */}
+      <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
+      <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
+      <Route path="/setup-password" element={<ForceResetPassword />} />
+
+      {/* ── Protected routes ── */}
+      <Route
+        path="/dashboard"
+        element={
+          <RequireAuth allowedRoles={ALL_ROLES}>
+            <Dashboard />
+          </RequireAuth>
+        }
+      />
+
+      {/* Task routes */}
+      <Route
+        path="/tasks"
+        element={
+          <RequireAuth allowedRoles={ALL_ROLES}>
+            <TaskList />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/tasks/create"
+        element={
+          <RequireAuth allowedRoles={ALL_ROLES}>
+            <CreateTask />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/tasks/edit/:id"
+        element={
+          <RequireAuth allowedRoles={ALL_ROLES}>
+            <EditTask />
+          </RequireAuth>
+        }
+      />
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
+}

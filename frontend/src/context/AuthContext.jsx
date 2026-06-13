@@ -2,9 +2,15 @@ import { createContext, useState, useEffect, useContext, useCallback } from 'rea
 
 const AuthContext = createContext(null);
 
+/** Persist token to sessionStorage so Axios interceptor can read it */
+const persistToken = (token) => {
+  if (token) sessionStorage.setItem('accessToken', token);
+  else sessionStorage.removeItem('accessToken');
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [accessToken, setAccessToken] = useState(null);
+  const [accessToken, setAccessToken] = useState(() => sessionStorage.getItem('accessToken'));
   const [loading, setLoading] = useState(true);
 
   // Helper to get authorization headers
@@ -56,6 +62,7 @@ export function AuthProvider({ children }) {
       if (data.success && data.data?.token) {
         const newToken = data.data.token;
         setAccessToken(newToken);
+        persistToken(newToken);
         await fetchMe(newToken);
         return newToken;
       }
@@ -99,6 +106,7 @@ export function AuthProvider({ children }) {
 
       const { token, user: loggedUser } = resData.data;
       setAccessToken(token);
+      persistToken(token);
       setUser(loggedUser);
       setLoading(false);
       return resData.data;
@@ -139,6 +147,7 @@ export function AuthProvider({ children }) {
       console.error('Logout error on server:', error);
     } finally {
       setAccessToken(null);
+      persistToken(null);
       setUser(null);
     }
   };
