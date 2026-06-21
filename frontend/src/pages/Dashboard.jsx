@@ -64,12 +64,17 @@ export default function Dashboard() {
             </div>
             
             <div className="flex flex-wrap gap-3 flex-shrink-0">
-              <button
-                onClick={() => navigate('/tasks/create')}
-                className="px-4 py-2.5 bg-white text-indigo-950 font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-transform duration-100 hover:scale-[1.02]"
-              >
-                🆕 New Task
-              </button>
+              
+              {/* TARGET 1: Hide the top New Task button from Collaborators */}
+              {user?.role !== 'Collaborator' && (
+                <button
+                  onClick={() => navigate('/tasks/create')}
+                  className="px-4 py-2.5 bg-white text-indigo-950 font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-transform duration-100 hover:scale-[1.02]"
+                >
+                  🆕 New Task
+                </button>
+              )}
+
               <button
                 onClick={() => navigate('/tasks')}
                 className="px-4 py-2.5 bg-indigo-700/50 border border-indigo-500/40 text-white font-bold text-[13.5px] rounded-xl cursor-pointer transition-transform duration-100 hover:scale-[1.02]"
@@ -137,12 +142,16 @@ export default function Dashboard() {
                 >
                   View All Tasks
                 </button>
-                <button
-                  onClick={() => navigate('/tasks/create')}
-                  className="px-3.5 py-2 bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold text-[12px] rounded-lg cursor-pointer transition-colors hover:bg-indigo-100"
-                >
-                  + New Task
-                </button>
+
+                {/* TARGET 2: Hide the bottom New Task button from Collaborators */}
+                {user?.role !== 'Collaborator' && (
+                  <button
+                    onClick={() => navigate('/tasks/create')}
+                    className="px-3.5 py-2 bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold text-[12px] rounded-lg cursor-pointer transition-colors hover:bg-indigo-100"
+                  >
+                    + New Task
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -1,3 +1,4 @@
+import userRoutes from './routes/user.routes';
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -25,6 +26,7 @@ app.use(morgan('dev'));
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/admin/users', userRoutes);
 
 // Handle 404
 app.use(notFoundHandler);

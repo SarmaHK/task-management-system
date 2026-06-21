@@ -1,8 +1,11 @@
 /**
  * AppRoutes.jsx — Centralised routing with protected route guards
  */
+
+import AdminUsers from '../pages/AdminUsers';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+
 
 // Auth pages
 import Login from '../pages/Login';
@@ -95,6 +98,16 @@ export default function AppRoutes() {
             <EditTask />
           </RequireAuth>
         }
+      />
+
+      {/* 🟢 Admin Management Route (Locked to Admins ONLY) */}
+      <Route 
+        path="/admin/users" 
+        element={
+          <RequireAuth allowedRoles={['Administrator']}>
+            <AdminUsers />
+          </RequireAuth>
+        } 
       />
 
       {/* Catch-all */}

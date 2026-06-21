@@ -1,9 +1,8 @@
-/**
- * DashboardLayout.jsx — Shared sidebar + topbar layout for all authenticated pages
- */
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+// 1. Import your new Notification Panel component
+import NotificationPanel from './NotificationPanel';
 
 const NAV_ITEMS = [
   {
@@ -27,9 +26,20 @@ const NAV_ITEMS = [
   {
     to: '/tasks/create',
     label: 'Create Task',
+    adminOnly: true, // Tagging this so we can hide it from Collaborators
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+      </svg>
+    ),
+  },
+  {
+    to: '/admin/users',
+    label: 'User Management',
+    adminOnly: true, // Only Admins can see this link
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
       </svg>
     ),
   },
@@ -40,6 +50,9 @@ export default function DashboardLayout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // 2. Add state to track if the notification panel is open
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const getRoleBadge = () => {
     const role = (user?.role || '').toLowerCase();
@@ -49,6 +62,9 @@ export default function DashboardLayout({ children }) {
   };
 
   const NavLink = ({ item }) => {
+    // 3. Hide links that are marked adminOnly if the user is a Collaborator
+    if (item.adminOnly && user?.role === 'Collaborator') return null;
+
     const active = location.pathname === item.to || (item.to !== '/dashboard' && location.pathname.startsWith(item.to));
     return (
       <button
@@ -66,7 +82,7 @@ export default function DashboardLayout({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/60 flex">
+    <div className="min-h-screen bg-gray-50/60 flex relative">
       {/* ── Sidebar (desktop) ── */}
       <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-100 fixed top-0 left-0 h-full z-30 shadow-sm">
         {/* Logo */}
@@ -87,8 +103,24 @@ export default function DashboardLayout({ children }) {
           ))}
         </nav>
 
-        {/* User card + logout */}
+        {/* User card + Notifications + Logout */}
         <div className="px-3 py-4 border-t border-gray-100">
+          
+          {/* Notification Bell Button (Desktop) */}
+          <button 
+            onClick={() => setIsNotificationOpen(true)}
+            className="w-full flex items-center gap-3 px-4 py-3 mb-2 rounded-xl text-[14px] font-semibold text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all cursor-pointer text-left"
+          >
+            <span className="relative">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {/* Red dot indicating unread notifications */}
+              <span className="absolute 0 right-0 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+            </span>
+            Notifications
+          </button>
+
           <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-gray-50 mb-2">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-[14px] flex-shrink-0">
               {user?.name?.charAt(0).toUpperCase() || 'U'}
@@ -112,42 +144,6 @@ export default function DashboardLayout({ children }) {
         </div>
       </aside>
 
-      {/* ── Mobile sidebar overlay ── */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <aside className="absolute left-0 top-0 h-full w-72 bg-white shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between px-5 py-5 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="grid grid-cols-2 gap-[3px] w-[20px] h-[20px]">
-                  <span className="rounded-[3px] bg-indigo-600 block" />
-                  <span className="rounded-[3px] bg-indigo-400 block" />
-                  <span className="rounded-[3px] bg-indigo-300 block" />
-                  <span className="rounded-[3px] bg-indigo-500 block" />
-                </div>
-                <span className="text-[17px] font-extrabold text-indigo-950">TaskFlow</span>
-              </div>
-              <button onClick={() => setSidebarOpen(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <nav className="flex-1 px-3 py-5 flex flex-col gap-1">
-              {NAV_ITEMS.map((item) => <NavLink key={item.to} item={item} />)}
-            </nav>
-            <div className="px-3 py-4 border-t border-gray-100">
-              <button onClick={logout} className="w-full flex items-center gap-2 px-3 py-2.5 text-[13px] font-semibold text-gray-500 rounded-xl hover:bg-red-50 hover:text-red-600 transition-all cursor-pointer">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Sign out
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
-
       {/* ── Main content ── */}
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
         {/* Top bar (mobile) */}
@@ -157,17 +153,25 @@ export default function DashboardLayout({ children }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
+          
           <div className="flex items-center gap-2">
-            <div className="grid grid-cols-2 gap-[3px] w-[18px] h-[18px]">
-              <span className="rounded-[2px] bg-indigo-600 block" />
-              <span className="rounded-[2px] bg-indigo-400 block" />
-              <span className="rounded-[2px] bg-indigo-300 block" />
-              <span className="rounded-[2px] bg-indigo-500 block" />
-            </div>
             <span className="text-[16px] font-extrabold text-indigo-950">TaskFlow</span>
           </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-[13px]">
-            {user?.name?.charAt(0).toUpperCase() || 'U'}
+          
+          <div className="flex items-center gap-3">
+             {/* Notification Bell Button (Mobile) */}
+            <button 
+              onClick={() => setIsNotificationOpen(true)}
+              className="relative text-gray-500 hover:text-indigo-600 cursor-pointer"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              <span className="absolute 0 right-0 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+            </button>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-[13px]">
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
+            </div>
           </div>
         </header>
 
@@ -176,6 +180,12 @@ export default function DashboardLayout({ children }) {
           {children}
         </main>
       </div>
+
+      {/* 4. Render the Notification Panel */}
+      <NotificationPanel 
+        isOpen={isNotificationOpen} 
+        onClose={() => setIsNotificationOpen(false)} 
+      />
     </div>
   );
 }
