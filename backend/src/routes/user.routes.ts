@@ -9,7 +9,7 @@ const router = express.Router();
 router.patch(
   '/:id/deactivate',
   authenticateUser,      // 1. Must be logged in
-  checkRole(['admin']),  // 2. Must be an admin
+  checkRole(['Administrator']),  // 2. Must be an admin
   deactivateUser         // 3. Run the database update
 );
 
@@ -17,7 +17,7 @@ router.patch(
 router.patch(
   '/:id/role',
   authenticateUser,      // 1. Must be logged in
-  checkRole(['admin']),  // 2. Must be an admin
+  checkRole(['Administrator']),  // 2. Must be an admin
   updateUserRole         // 3. Run the database update
 );
 
