@@ -8,6 +8,8 @@ import authRoutes from './routes/auth.routes';
 import taskRoutes from './routes/task.routes';
 import { errorHandler } from './middlewares/error.middleware';
 import { notFoundHandler } from './middlewares/notFound.middleware';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './swagger';
 
 const app: Application = express();
 
@@ -21,6 +23,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Logging Middleware
 app.use(morgan('dev'));
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Routes
 app.use('/api/health', healthRoutes);

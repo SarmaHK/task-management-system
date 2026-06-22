@@ -9,6 +9,9 @@ const router = Router();
 // GET /api/tasks → get all tasks
 router.get('/', authenticateUser as any, TaskController.getAllTasks);
 
+// GET /api/tasks/filter → filter tasks
+router.get('/filter', authenticateUser as any, TaskController.filterTasks);
+
 // POST /api/tasks → create new task
 router.post('/', authenticateUser as any, TaskController.createTask);
 
@@ -23,13 +26,12 @@ router.delete('/:id', authenticateUser as any, TaskController.deleteTask);
 
 // ─── Extra Task Routes ──────────────────────────────
 
+
 // PATCH /api/tasks/:id/status → change status only
 router.patch('/:id/status', authenticateUser as any, TaskController.updateTaskStatus);
 
 // PATCH /api/tasks/:id/priority → change priority only
 router.patch('/:id/priority', authenticateUser as any, TaskController.updateTaskPriority);
 
-// GET /api/tasks/filter → filter tasks
-router.get('/filter', authenticateUser as any, TaskController.filterTasks);
 
 export default router;
