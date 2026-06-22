@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database'; 
+import { io } from '../server'; // 🟢 1. Import your active WebSockets server
 
 // 1. Deactivate User
 export const deactivateUser = async (req: Request, res: Response): Promise<void> => {
@@ -10,6 +11,9 @@ export const deactivateUser = async (req: Request, res: Response): Promise<void>
       where: { id: userId },
       data: { isActive: false }
     });
+
+    // 🟢 2. Broadcast that this user was deactivated so the frontend can log them out
+    io.emit('userDeactivated', { userId: updatedUser.id });
 
     res.status(200).json({
       success: true,
@@ -38,6 +42,9 @@ export const updateUserRole = async (req: Request, res: Response): Promise<void>
       data: { roleId: parseInt(roleId) },
       include: { role: true } // Include the new role details in the response
     });
+
+    // 🟢 3. Broadcast that this user's role changed (e.g., Member -> Admin)
+    io.emit('userRoleUpdated', { userId: updatedUser.id, role: updatedUser.role.name });
 
     res.status(200).json({
       success: true,
