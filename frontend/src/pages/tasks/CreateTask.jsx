@@ -2,7 +2,7 @@
  * CreateTask.jsx — Page for creating a new task
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import taskService from '../../services/taskService';
 import TaskForm from '../../components/tasks/TaskForm';
 import DashboardLayout from '../../components/DashboardLayout';
@@ -10,8 +10,11 @@ import { useToast } from '../../utils/ToastContext';
 
 export default function CreateTask() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const toast = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const queryProjectId = searchParams.get('projectId') || '';
 
   const handleSubmit = async (payload) => {
     setIsSubmitting(true);
@@ -67,6 +70,7 @@ export default function CreateTask() {
           {/* Form body */}
           <div className="px-6 sm:px-8 py-7">
             <TaskForm
+              initialValues={{ projectId: queryProjectId }}
               onSubmit={handleSubmit}
               isSubmitting={isSubmitting}
               submitLabel="Create Task"

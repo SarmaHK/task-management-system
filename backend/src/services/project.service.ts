@@ -1,0 +1,320 @@
+import { prisma } from '../config/database';
+import { AppError } from '../utils/AppError';
+import { ProjectStatus, ProjectRole } from '@prisma/client';
+import { SocketService } from './socket.service';
+
+
+export class ProjectService {
+  // ─── CREATE PROJECT ──────────────────────────────────
+  public static async createProject(data: {
+    name: string;
+    description?: string;
+    ownerId: number;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    if (!data.name || data.name.trim().length < 3) {
+      throw new AppError('Project name must be at least 3 characters long', 400);
+    }
+
+    const project = await prisma.project.create({
+      data: {
+        name: data.name.trim(),
+        description: data.description,
+        ownerId: data.ownerId,
+        startDate: data.startDate ? new Date(data.startDate) : undefined,
+        endDate: data.endDate ? new Date(data.endDate) : undefined,
+        status: ProjectStatus.ACTIVE,
+      },
+    });
+
+    // Automatically make the creator an owner/manager member in ProjectMember list
+    await prisma.projectMember.create({
+      data: {
+        projectId: project.id,
+        userId: data.ownerId,
+        role: ProjectRole.PROJECT_MANAGER,
+      },
+    });
+
+    // Send socket notification
+    await SocketService.sendNotification(data.ownerId, {
+      message: `Project "${project.name}" was created successfully`,
+      type: 'PROJECT_CREATED',
+    });
+
+    return project;
+  }
+
+  // ─── GET ALL PROJECTS ────────────────────────────────
+  public static async getAllProjects(userId: number, userRole: string) {
+    if (userRole === 'Administrator') {
+      return prisma.project.findMany({
+        where: { isDeleted: false },
+        include: {
+          owner: { select: { id: true, name: true, email: true } },
+          members: { include: { user: { select: { id: true, name: true, email: true } } } },
+        },
+      });
+    }
+
+    // PM can see projects they created OR are members of. Collaborators see projects they are members of.
+    return prisma.project.findMany({
+      where: {
+        isDeleted: false,
+        OR: [
+          { ownerId: userId },
+          { members: { some: { userId } } },
+        ],
+      },
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+        members: { include: { user: { select: { id: true, name: true, email: true } } } },
+      },
+    });
+  }
+
+  // ─── GET PROJECT BY ID & CALCULATE METRICS ───────────
+  public static async getProjectById(projectId: number, userId: number, userRole: string) {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, isDeleted: false },
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+        members: { include: { user: { select: { id: true, name: true, email: true } } } },
+        tasks: {
+          include: {
+            assignees: { include: { user: { select: { id: true, name: true } } } },
+          },
+        },
+      },
+    });
+
+    if (!project) {
+      throw new AppError('Project not found or deleted', 404);
+    }
+
+    // Guard access: Administrator, Owner, or Member only
+    const isMember = project.members.some((m) => m.userId === userId);
+    const isOwner = project.ownerId === userId;
+    if (userRole !== 'Administrator' && !isOwner && !isMember) {
+      throw new AppError('Access forbidden to this project', 403);
+    }
+
+    // Analytics calculations
+    const tasks = project.tasks;
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter((t) => t.status === 'COMPLETED').length;
+    const inProgressTasks = tasks.filter((t) => t.status === 'IN_PROGRESS').length;
+    const pendingTasks = tasks.filter((t) => t.status === 'TODO').length;
+    
+    const now = new Date();
+    const overdueTasks = tasks.filter((t) => {
+      return t.status !== 'COMPLETED' && t.dueDate && new Date(t.dueDate) < now;
+    }).length;
+
+    const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+    return {
+      project: {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        status: project.status,
+        startDate: project.startDate,
+        endDate: project.endDate,
+        owner: project.owner,
+        members: project.members,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+      },
+      analytics: {
+        totalTasks,
+        completedTasks,
+        inProgressTasks,
+        pendingTasks,
+        overdueTasks,
+        completionPercentage,
+      },
+    };
+  }
+
+  // ─── UPDATE PROJECT (WITH OWNERSHIP CHECK) ───────────
+  public static async updateProject(
+    projectId: number,
+    data: {
+      name?: string;
+      description?: string;
+      status?: ProjectStatus;
+      startDate?: string;
+      endDate?: string;
+    },
+    userId: number,
+    userRole: string
+  ) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project || project.isDeleted) {
+      throw new AppError('Project not found', 404);
+    }
+
+    // Strict Ownership Enforcement: Admin or Owner only
+    if (userRole !== 'Administrator' && project.ownerId !== userId) {
+      throw new AppError('Only the project creator or an Administrator can modify this project', 403);
+    }
+
+    if (data.name && data.name.trim().length < 3) {
+      throw new AppError('Project name must be at least 3 characters long', 400);
+    }
+
+    const updatedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        name: data.name?.trim(),
+        description: data.description,
+        status: data.status,
+        startDate: data.startDate ? new Date(data.startDate) : undefined,
+        endDate: data.endDate ? new Date(data.endDate) : undefined,
+      },
+    });
+
+    // Notify all members
+    const members = await prisma.projectMember.findMany({
+      where: { projectId },
+      select: { userId: true },
+    });
+
+    for (const member of members) {
+      await SocketService.sendNotification(member.userId, {
+        message: `Project "${updatedProject.name}" was updated`,
+        type: 'PROJECT_UPDATED',
+      });
+    }
+
+    return updatedProject;
+  }
+
+  // ─── DELETE PROJECT (SOFT DELETE) ────────────────────
+  public static async deleteProject(projectId: number, userId: number, userRole: string) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project || project.isDeleted) {
+      throw new AppError('Project not found', 404);
+    }
+
+    if (userRole !== 'Administrator' && project.ownerId !== userId) {
+      throw new AppError('Only the project creator or an Administrator can delete this project', 403);
+    }
+
+    // Soft delete
+    return prisma.project.update({
+      where: { id: projectId },
+      data: { isDeleted: true },
+    });
+  }
+
+  // ─── ADD PROJECT MEMBER ──────────────────────────────
+  public static async addProjectMember(
+    projectId: number,
+    userIdToLink: number,
+    role: ProjectRole,
+    userId: number,
+    userRole: string
+  ) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project || project.isDeleted) {
+      throw new AppError('Project not found', 404);
+    }
+
+    if (userRole !== 'Administrator' && project.ownerId !== userId) {
+      throw new AppError('Only the project creator or an Administrator can manage members', 403);
+    }
+
+    // Verify user to add exists
+    const targetUser = await prisma.user.findUnique({ where: { id: userIdToLink } });
+    if (!targetUser) {
+      throw new AppError('Target user not found', 404);
+    }
+
+    const projectMember = await prisma.projectMember.upsert({
+      where: {
+        projectId_userId: {
+          projectId,
+          userId: userIdToLink,
+        },
+      },
+      update: { role },
+      create: {
+        projectId,
+        userId: userIdToLink,
+        role,
+      },
+    });
+
+    // Notify the added member
+    await SocketService.sendNotification(userIdToLink, {
+      message: `You have been added to project "${project.name}"`,
+      type: 'PROJECT_MEMBER_ADDED',
+    });
+
+    return projectMember;
+  }
+
+  // ─── REMOVE PROJECT MEMBER ───────────────────────────
+  public static async removeProjectMember(
+    projectId: number,
+    memberIdToRemove: number,
+    userId: number,
+    userRole: string
+  ) {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project || project.isDeleted) {
+      throw new AppError('Project not found', 404);
+    }
+
+    if (userRole !== 'Administrator' && project.ownerId !== userId) {
+      throw new AppError('Only the project creator or an Administrator can manage members', 403);
+    }
+
+    const member = await prisma.projectMember.findFirst({
+      where: { id: memberIdToRemove, projectId },
+    });
+
+    if (!member) {
+      throw new AppError('Member not found in this project', 404);
+    }
+
+    // Cannot remove the project owner from members list
+    if (member.userId === project.ownerId) {
+      throw new AppError('Cannot remove the project owner from project members', 400);
+    }
+
+    return prisma.projectMember.delete({
+      where: { id: memberIdToRemove },
+    });
+  }
+
+  // ─── GET PROJECT TASKS ───────────────────────────────
+  public static async getProjectTasks(projectId: number, userId: number, userRole: string) {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: { members: true },
+    });
+
+    if (!project || project.isDeleted) {
+      throw new AppError('Project not found', 404);
+    }
+
+    const isMember = project.members.some((m) => m.userId === userId);
+    const isOwner = project.ownerId === userId;
+    if (userRole !== 'Administrator' && !isOwner && !isMember) {
+      throw new AppError('Access forbidden to this project tasks', 403);
+    }
+
+    return prisma.task.findMany({
+      where: { projectId },
+      include: {
+        assignees: { include: { user: { select: { id: true, name: true, email: true } } } },
+        creator: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+}

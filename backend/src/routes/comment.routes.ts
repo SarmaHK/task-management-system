@@ -1,15 +1,13 @@
 import { Router } from 'express';
 import { CommentController } from '../controllers/comment.controller';
-import { authenticateUser } from '../middlewares/auth.middleware'; // Adjust import path if needed
+import { authenticateUser } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-// Apply auth middleware to all comment routes
-router.use(authenticateUser);
+router.use(authenticateUser as any);
 
-router.post('/tasks/:id/comments', CommentController.addComment);
-router.get('/tasks/:id/comments', CommentController.getComments);
-router.put('/comments/:id', CommentController.updateComment);
-router.delete('/comments/:id', CommentController.deleteComment);
+router.put('/:id', CommentController.updateComment as any);
+router.patch('/:id', CommentController.updateComment as any);
+router.delete('/:id', CommentController.deleteComment as any);
 
 export default router;

@@ -1,24 +1,33 @@
 import express from 'express';
 import { authenticateUser } from '../middlewares/auth.middleware';
 import { checkRole } from '../middlewares/role.middleware';
-import { deactivateUser, updateUserRole } from '../controllers/user.controller';
+import { 
+  deactivateUser, 
+  updateUserRole, 
+  getUsersList, 
+  getUserById, 
+  createUserByAdmin 
+} from '../controllers/user.controller';
 
 const router = express.Router();
 
+// Apply auth + role checking globally to all admin user routes
+router.use(authenticateUser as any);
+router.use(checkRole(['Administrator']) as any);
+
+// Route: GET /api/admin/users
+router.get('/', getUsersList as any);
+
+// Route: POST /api/admin/users
+router.post('/', createUserByAdmin as any);
+
+// Route: GET /api/admin/users/:id
+router.get('/:id', getUserById as any);
+
 // Route: PATCH /api/admin/users/:id/deactivate
-router.patch(
-  '/:id/deactivate',
-  authenticateUser,      // 1. Must be logged in
-  checkRole(['Administrator']),  // 2. Must be an admin
-  deactivateUser         // 3. Run the database update
-);
+router.patch('/:id/deactivate', deactivateUser as any);
 
 // Route: PATCH /api/admin/users/:id/role
-router.patch(
-  '/:id/role',
-  authenticateUser,      // 1. Must be logged in
-  checkRole(['Administrator']),  // 2. Must be an admin
-  updateUserRole         // 3. Run the database update
-);
+router.patch('/:id/role', updateUserRole as any);
 
 export default router;

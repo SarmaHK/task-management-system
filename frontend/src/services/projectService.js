@@ -1,5 +1,5 @@
 /**
- * projectService.js — Project-related API calls
+ * projectService.js — Project-related API calls via Axios
  */
 import api from './api';
 
@@ -9,6 +9,67 @@ export const projectService = {
    */
   getAllProjects: async () => {
     const response = await api.get('/projects');
+    return response.data;
+  },
+
+  /**
+   * Get project details and analytics by ID
+   */
+  getProjectById: async (id) => {
+    const response = await api.get(`/projects/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Create a new project (Admin or PM only)
+   * @param {{ name, description, startDate, endDate }} payload
+   */
+  createProject: async (payload) => {
+    const response = await api.post('/projects', payload);
+    return response.data;
+  },
+
+  /**
+   * Update an existing project (Admin or Owner PM only)
+   * @param {number} id
+   * @param {{ name, description, status, startDate, endDate }} payload
+   */
+  updateProject: async (id, payload) => {
+    const response = await api.patch(`/projects/${id}`, payload);
+    return response.data;
+  },
+
+  /**
+   * Soft delete a project (Admin or Owner PM only)
+   */
+  deleteProject: async (id) => {
+    const response = await api.delete(`/projects/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Link a member to a project
+   * @param {number} id — Project ID
+   * @param {{ userId: number, role: string }} memberPayload
+   */
+  addProjectMember: async (id, memberPayload) => {
+    const response = await api.post(`/projects/${id}/members`, memberPayload);
+    return response.data;
+  },
+
+  /**
+   * Unlink a member from a project
+   */
+  removeProjectMember: async (id, memberId) => {
+    const response = await api.delete(`/projects/${id}/members/${memberId}`);
+    return response.data;
+  },
+
+  /**
+   * Get all tasks associated with a project
+   */
+  getProjectTasks: async (id) => {
+    const response = await api.get(`/projects/${id}/tasks`);
     return response.data;
   },
 };

@@ -1,0 +1,183 @@
+import { Server as SocketIOServer, Socket } from 'socket.io';
+import http from 'http';
+import { verifyToken } from '../utils/jwt';
+import { prisma } from '../config/database';
+import { NotificationType } from '@prisma/client';
+
+export class SocketService {
+  private static io: SocketIOServer | null = null;
+  // userId -> Set of socketIds (to support multiple tabs/connections)
+  private static userSockets = new Map<number, Set<string>>();
+
+  public static init(server: http.Server): SocketIOServer {
+    this.io = new SocketIOServer(server, {
+      cors: {
+        origin: '*', // Allows frontend development connections
+        methods: ['GET', 'POST'],
+      },
+    });
+
+    this.io.use((socket: Socket, next) => {
+      try {
+        const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+        if (!token) {
+          return next(new Error('Authentication token missing'));
+        }
+
+        const decoded = verifyToken(token as string);
+        if (!decoded || !decoded.userId) {
+          return next(new Error('Invalid token payload'));
+        }
+
+        socket.data = { userId: Number(decoded.userId) };
+        next();
+      } catch (error) {
+        return next(new Error('Authentication failed'));
+      }
+    });
+
+    this.io.on('connection', (socket: Socket) => {
+      const userId = socket.data.userId;
+      
+      if (!this.userSockets.has(userId)) {
+        this.userSockets.set(userId, new Set());
+      }
+      this.userSockets.get(userId)!.add(socket.id);
+
+      console.log(`[WS] User ${userId} connected via socket ${socket.id}`);
+
+      socket.on('disconnect', () => {
+        const sockets = this.userSockets.get(userId);
+        if (sockets) {
+          sockets.delete(socket.id);
+          if (sockets.size === 0) {
+            this.userSockets.delete(userId);
+          }
+        }
+        console.log(`[WS] User ${userId} disconnected from socket ${socket.id}`);
+      });
+    });
+
+    // Start background check for approaching deadlines
+    this.startDeadlineCheck();
+
+    return this.io;
+  }
+
+  public static emitToUser(userId: number, event: string, data: any): void {
+    const socketIds = this.userSockets.get(userId);
+    if (socketIds && this.io) {
+      for (const socketId of socketIds) {
+        this.io.to(socketId).emit(event, data);
+      }
+    }
+  }
+
+  public static emitToUsers(userIds: number[], event: string, data: any): void {
+    userIds.forEach(userId => this.emitToUser(userId, event, data));
+  }
+
+  /**
+   * Helper to create a notification in DB and emit it via WS if user is online.
+   */
+  public static async sendNotification(
+    userId: number,
+    data: {
+      message: string;
+      type: string; // The specific action type (e.g. PROJECT_CREATED)
+      taskId?: number;
+    }
+  ) {
+    // Map custom type to prisma schema NotificationType
+    let dbType: NotificationType = NotificationType.ADMIN_UPDATE;
+    
+    if (data.type === 'TASK_ASSIGNED') {
+      dbType = NotificationType.TASK_ASSIGNED;
+    } else if (data.type === 'TASK_STATUS_CHANGED' || data.type === 'STATUS_CHANGED') {
+      dbType = NotificationType.STATUS_CHANGED;
+    } else if (data.type === 'COMMENT_ADDED') {
+      dbType = NotificationType.COMMENT_ADDED;
+    } else if (data.type === 'DEADLINE_APPROACHING' || data.type === 'DEADLINE_ALERT') {
+      dbType = NotificationType.DEADLINE_ALERT;
+    }
+
+    // 1. Create in database
+    const notification = await prisma.notification.create({
+      data: {
+        userId,
+        message: data.message,
+        type: dbType,
+        taskId: data.taskId,
+      },
+    });
+
+    // 2. Emit via WS, including the detailed action type
+    const livePayload = {
+      ...notification,
+      originalType: data.type, // Pass the detailed notification type
+    };
+
+    this.emitToUser(userId, 'notification', livePayload);
+
+    return notification;
+  }
+
+  /**
+   * Periodically checks for active tasks due in the next 24 hours
+   * and triggers DEADLINE_APPROACHING notifications for assigned users.
+   */
+  private static startDeadlineCheck(): void {
+    // Run checking routine every 1 hour in development
+    const checkInterval = 60 * 60 * 1000;
+
+    const checkDeadlines = async () => {
+      try {
+        const now = new Date();
+        const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+        const approachingTasks = await prisma.task.findMany({
+          where: {
+            status: { not: 'COMPLETED' },
+            dueDate: {
+              gt: now,
+              lte: tomorrow,
+            },
+          },
+          include: {
+            assignees: true,
+          },
+        });
+
+        for (const task of approachingTasks) {
+          for (const assignment of task.assignees) {
+            // Check if user was already alerted for this task within the last 24h
+            const existingAlert = await prisma.notification.findFirst({
+              where: {
+                userId: assignment.userId,
+                taskId: task.id,
+                type: NotificationType.DEADLINE_ALERT,
+                createdAt: {
+                  gt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+                },
+              },
+            });
+
+            if (!existingAlert) {
+              await this.sendNotification(assignment.userId, {
+                message: `Deadline approaching: task "${task.title}" is due soon (${task.dueDate?.toLocaleDateString()})`,
+                type: 'DEADLINE_APPROACHING',
+                taskId: task.id,
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[WS-DEADLINE-CHECK] Error:', error);
+      }
+    };
+
+    // Run once immediately, then every hour
+    checkDeadlines();
+    setInterval(checkDeadlines, checkInterval);
+  }
+}

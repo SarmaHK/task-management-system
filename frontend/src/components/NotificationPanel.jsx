@@ -1,13 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 
-export default function NotificationPanel({ isOpen, onClose }) {
-  // Mock data for notifications
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'New Task Assigned', message: 'You have been assigned to "Update Database Schema"', time: '5m ago', isRead: false },
-    { id: 2, title: 'Project Update', message: 'Phase 1 deliverables have been approved.', time: '2h ago', isRead: false },
-    { id: 3, title: 'System Alert', message: 'Scheduled maintenance this Sunday at 2 AM.', time: '1d ago', isRead: true }
-  ]);
+const getTitleForType = (type) => {
+  switch (type) {
+    case 'TASK_ASSIGNED':
+      return 'Task Assigned';
+    case 'STATUS_CHANGED':
+      return 'Status Update';
+    case 'DEADLINE_ALERT':
+      return 'Deadline Approaching';
+    case 'COMMENT_ADDED':
+      return 'Comment Added';
+    case 'ADMIN_UPDATE':
+    default:
+      return 'Notification';
+  }
+};
 
+const formatTime = (dateString) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
+};
+
+export default function NotificationPanel({ 
+  isOpen, 
+  onClose, 
+  notifications = [], 
+  unreadCount = 0, 
+  onMarkAsRead, 
+  onMarkAllAsRead 
+}) {
+  
   // Prevent scrolling on the main page when the panel is open
   useEffect(() => {
     if (isOpen) {
@@ -18,24 +49,12 @@ export default function NotificationPanel({ isOpen, onClose }) {
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
 
-  const handleMarkAsRead = (id) => {
-    setNotifications(notifications.map(notif => 
-      notif.id === id ? { ...notif, isRead: true } : notif
-    ));
-  };
-
-  const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map(notif => ({ ...notif, isRead: true })));
-  };
-
-  const unreadCount = notifications.filter(n => !n.isRead).length;
-
   return (
     <>
       {/* Dark Overlay background */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity"
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity animate-fade-in"
           onClick={onClose}
         />
       )}
@@ -51,7 +70,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
           <div className="flex items-center gap-3">
             <h2 className="text-[18px] font-bold text-indigo-950">Notifications</h2>
             {unreadCount > 0 && (
-              <span className="bg-rose-100 text-rose-700 text-[11px] font-bold px-2 py-0.5 rounded-full">
+              <span className="bg-rose-100 text-rose-700 text-[11px] font-bold px-2 py-0.5 rounded-full animate-pulse">
                 {unreadCount} new
               </span>
             )}
@@ -68,8 +87,8 @@ export default function NotificationPanel({ isOpen, onClose }) {
         {unreadCount > 0 && (
           <div className="px-6 py-3 bg-gray-50/50 border-b border-gray-100 flex justify-end">
             <button 
-              onClick={handleMarkAllAsRead}
-              className="text-[12px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+              onClick={onMarkAllAsRead}
+              className="text-[12px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
             >
               Mark all as read
             </button>
@@ -83,26 +102,26 @@ export default function NotificationPanel({ isOpen, onClose }) {
               key={notif.id} 
               className={`p-4 rounded-xl border transition-all ${
                 notif.isRead 
-                  ? 'bg-white border-gray-100 opacity-70' 
-                  : 'bg-indigo-50/50 border-indigo-100 shadow-sm'
+                  ? 'bg-white border-gray-100 opacity-75' 
+                  : 'bg-indigo-50/40 border-indigo-100 shadow-sm'
               }`}
             >
               <div className="flex justify-between items-start gap-2 mb-1">
-                <h4 className={`text-[14px] font-bold ${notif.isRead ? 'text-gray-700' : 'text-indigo-950'}`}>
-                  {notif.title}
+                <h4 className={`text-[13px] font-extrabold tracking-tight ${notif.isRead ? 'text-gray-600' : 'text-indigo-950'}`}>
+                  {getTitleForType(notif.type)}
                 </h4>
-                <span className="text-[11px] font-medium text-gray-400 whitespace-nowrap">
-                  {notif.time}
+                <span className="text-[10px] font-semibold text-gray-400 whitespace-nowrap">
+                  {formatTime(notif.createdAt)}
                 </span>
               </div>
-              <p className="text-[13px] text-gray-500 leading-relaxed mb-3">
+              <p className="text-[12.5px] text-gray-500 leading-relaxed mb-3">
                 {notif.message}
               </p>
               
               {!notif.isRead && (
                 <button 
-                  onClick={() => handleMarkAsRead(notif.id)}
-                  className="text-[12px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                  onClick={() => onMarkAsRead(notif.id)}
+                  className="text-[11.5px] font-extrabold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
                 >
                   Mark as read ✓
                 </button>
@@ -111,7 +130,7 @@ export default function NotificationPanel({ isOpen, onClose }) {
           ))}
 
           {notifications.length === 0 && (
-            <div className="text-center py-10 text-gray-400 text-[14px]">
+            <div className="text-center py-10 text-gray-400 text-[13px] font-medium">
               No notifications yet!
             </div>
           )}
