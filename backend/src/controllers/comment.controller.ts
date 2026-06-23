@@ -15,7 +15,6 @@ export class CommentController {
 
       const { content } = req.body;
       const comment = await CommentService.addComment(taskId, content, req.user!.id);
-
       // Real-time Broadcast: Broadcasts to the exact payload spec from notification-api.md
       io.emit('COMMENT_ADDED', {
         type: 'COMMENT_ADDED',
