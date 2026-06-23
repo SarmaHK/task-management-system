@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
 import { generateAccessToken, generateRefreshToken, verifyToken } from '../utils/jwt';
+import { Role, UserStatus } from '@prisma/client';
 import {
   RegisterInput,
   LoginInput,
@@ -12,12 +13,7 @@ import {
   FirstLoginResetInput
 } from '../types/auth.types';
 
-// Password validation regex rules matching the api-planning.md specs:
-// - Minimum 8 characters
-// - At least one uppercase letter
-// - At least one lowercase letter
-// - At least one number
-// - At least one special character
+// Password validation regex rules:
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
 /**
@@ -47,15 +43,8 @@ export class AuthService {
       throw new AppError('A user with this email address already exists', 409);
     }
 
-    // 3. Resolve role (defaults to 'Collaborator')
-    const targetRoleName = roleName || 'Collaborator';
-    const role = await prisma.role.findUnique({
-      where: { name: targetRoleName },
-    });
-
-    if (!role) {
-      throw new AppError(`Role '${targetRoleName}' does not exist in the system`, 400);
-    }
+    // 3. Resolve role (defaults to COLLABORATOR)
+    const targetRole = roleName ? (roleName as Role) : Role.COLLABORATOR;
 
     // 4. Hash the password
     const salt = await bcrypt.genSalt(10);
@@ -66,15 +55,9 @@ export class AuthService {
       data: {
         name,
         email: email.toLowerCase(),
-        password: hashedPassword,
-        roleId: role.id,
-      },
-      include: {
-        role: {
-          select: {
-            name: true,
-          },
-        },
+        passwordHash: hashedPassword,
+        role: targetRole,
+        status: UserStatus.ACTIVE,
       },
     });
 
@@ -82,7 +65,7 @@ export class AuthService {
     const token = generateAccessToken({
       userId: newUser.id,
       email: newUser.email,
-      role: newUser.role.name,
+      role: newUser.role,
     });
     const refreshToken = generateRefreshToken({
       userId: newUser.id,
@@ -93,7 +76,7 @@ export class AuthService {
         id: newUser.id,
         name: newUser.name,
         email: newUser.email,
-        role: newUser.role.name,
+        role: newUser.role,
       },
       token,
       refreshToken,
@@ -109,13 +92,6 @@ export class AuthService {
     // 1. Find user by email
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
-      include: {
-        role: {
-          select: {
-            name: true,
-          },
-        },
-      },
     });
 
     // 2. User exists check
@@ -124,12 +100,12 @@ export class AuthService {
     }
 
     // 3. Status check
-    if (!user.isActive) {
+    if (user.status !== UserStatus.ACTIVE) {
       throw new AppError('Your account has been deactivated', 403);
     }
 
     // 4. Verify password
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       throw new AppError('Invalid email or password', 401);
     }
@@ -138,7 +114,7 @@ export class AuthService {
     const token = generateAccessToken({
       userId: user.id,
       email: user.email,
-      role: user.role.name,
+      role: user.role,
     });
     const refreshToken = generateRefreshToken({
       userId: user.id,
@@ -149,7 +125,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role.name,
+        role: user.role,
       },
       token,
       refreshToken,
@@ -181,7 +157,7 @@ export class AuthService {
       throw new AppError('User not found', 404);
     }
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isMatch) {
       throw new AppError('Current password is incorrect', 401);
     }
@@ -191,7 +167,7 @@ export class AuthService {
 
     await prisma.user.update({
       where: { id: userId },
-      data: { password: hashedPassword },
+      data: { passwordHash: hashedPassword },
     });
   }
 
@@ -265,7 +241,7 @@ export class AuthService {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         resetToken: null,
         resetTokenExpiry: null,
       },
@@ -301,7 +277,7 @@ export class AuthService {
       throw new AppError('First login password reset has already been completed', 400);
     }
 
-    const isMatch = await bcrypt.compare(temporaryPassword, user.password);
+    const isMatch = await bcrypt.compare(temporaryPassword, user.passwordHash);
     if (!isMatch) {
       throw new AppError('Invalid temporary password', 401);
     }
@@ -312,7 +288,7 @@ export class AuthService {
     await prisma.user.update({
       where: { id: userId },
       data: {
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         firstLogin: false,
       },
     });
@@ -339,20 +315,13 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      include: {
-        role: {
-          select: {
-            name: true,
-          },
-        },
-      },
     });
 
     if (!user) {
       throw new AppError('User no longer exists', 401);
     }
 
-    if (!user.isActive) {
+    if (user.status !== UserStatus.ACTIVE) {
       throw new AppError('User account is deactivated', 403);
     }
 
@@ -360,7 +329,7 @@ export class AuthService {
     const accessToken = generateAccessToken({
       userId: user.id,
       email: user.email,
-      role: user.role.name,
+      role: user.role,
     });
 
     return accessToken;

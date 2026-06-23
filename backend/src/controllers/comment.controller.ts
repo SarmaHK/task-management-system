@@ -3,6 +3,7 @@ import { CommentService } from '../services/comment.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/AppError';
 import { io } from '../server';
+import { Role } from '@prisma/client';
 
 export class CommentController {
   // POST /api/tasks/:id/comments
@@ -14,7 +15,7 @@ export class CommentController {
       }
 
       const { content } = req.body;
-      const comment = await CommentService.addComment(taskId, content, req.user!.id);
+      const comment = await CommentService.addComment(taskId, content, req.user!.id, req.user!.role);
       // Real-time Broadcast: Broadcasts to the exact payload spec from notification-api.md
       io.emit('COMMENT_ADDED', {
         type: 'COMMENT_ADDED',
@@ -41,7 +42,7 @@ export class CommentController {
         throw new AppError('Invalid task ID', 400);
       }
 
-      const comments = await CommentService.getCommentsForTask(taskId);
+      const comments = await CommentService.getCommentsForTask(taskId, req.user!.id, req.user!.role);
 
       res.status(200).json({
         success: true,
@@ -62,7 +63,7 @@ export class CommentController {
       }
 
       const { content } = req.body;
-      const comment = await CommentService.updateComment(commentId, content, req.user!.id, req.user!.role.name);
+      const comment = await CommentService.updateComment(commentId, content, req.user!.id, req.user!.role);
 
       res.status(200).json({
         success: true,
@@ -82,7 +83,7 @@ export class CommentController {
         throw new AppError('Invalid comment ID', 400);
       }
 
-      await CommentService.deleteComment(commentId, req.user!.id, req.user!.role.name);
+      await CommentService.deleteComment(commentId, req.user!.id, req.user!.role);
 
       res.status(200).json({
         success: true,

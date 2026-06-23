@@ -28,8 +28,8 @@ export default function ProtectedRoute({ allowedRoles }) {
 
   // Check role authorization (case-insensitive)
   if (allowedRoles && allowedRoles.length > 0) {
-    const userRole = (user.role || '').toLowerCase();
-    const hasRole = allowedRoles.some(role => role.toLowerCase() === userRole);
+    const userRole = (user.role || '').toUpperCase();
+    const hasRole = allowedRoles.some(role => role.toUpperCase() === userRole);
 
     if (!hasRole) {
       // If unauthorized, redirect to standard landing page (dashboard)

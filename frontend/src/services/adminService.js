@@ -48,6 +48,46 @@ export const adminService = {
     const response = await api.patch(`/admin/users/${id}/deactivate`);
     return response.data;
   },
+
+  /**
+   * Get all access requests
+   */
+  getRegistrationRequests: async () => {
+    const response = await api.get('/admin/requests');
+    return response.data;
+  },
+
+  /**
+   * Approve an access request with a selected roleId
+   */
+  approveRegistrationRequest: async (id, roleId) => {
+    const response = await api.post(`/admin/requests/${id}/approve`, { roleId });
+    return response.data;
+  },
+
+  /**
+   * Reject an access request
+   */
+  rejectRegistrationRequest: async (id) => {
+    const response = await api.post(`/admin/requests/${id}/reject`);
+    return response.data;
+  },
+
+  /**
+   * Get recent system log records
+   */
+  getSystemLogs: async () => {
+    const response = await api.get('/admin/logs');
+    return response.data;
+  },
+
+  /**
+   * Get total metrics counts for the admin dashboard
+   */
+  getAdminStats: async () => {
+    const response = await api.get('/admin/logs/stats');
+    return response.data;
+  },
 };
 
 export default adminService;

@@ -3,15 +3,14 @@ import { verifyToken } from '../utils/jwt';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
 
+import { Role } from '@prisma/client';
+
 // Define custom request type extending Express request with user information
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: number;
     email: string;
-    roleId: number;
-    role: {
-      name: string;
-    };
+    role: Role;
   };
 }
 
@@ -48,13 +47,8 @@ export const authenticateUser = async (
       select: {
         id: true,
         email: true,
-        roleId: true,
-        isActive: true,
-        role: {
-          select: {
-            name: true,
-          },
-        },
+        role: true,
+        status: true,
       },
     });
 
@@ -62,7 +56,7 @@ export const authenticateUser = async (
       throw new AppError('User belonging to this token no longer exists', 401);
     }
 
-    if (!user.isActive) {
+    if (user.status !== 'ACTIVE') {
       throw new AppError('User account is deactivated', 403);
     }
 
@@ -70,10 +64,7 @@ export const authenticateUser = async (
     req.user = {
       id: user.id,
       email: user.email,
-      roleId: user.roleId,
-      role: {
-        name: user.role.name,
-      },
+      role: user.role,
     };
 
     next();

@@ -72,13 +72,12 @@ export default function CommentSection({ taskId }) {
   const isAllowedToDelete = (comment) => {
     return (
       comment.userId === user?.id ||
-      user?.role === 'Project Manager' ||
-      user?.role === 'Administrator'
+      user?.role === 'PROJECT_MANAGER'
     );
   };
 
   const isAllowedToEdit = (comment) => {
-    return comment.userId === user?.id || user?.role === 'Administrator';
+    return comment.userId === user?.id;
   };
 
   return (

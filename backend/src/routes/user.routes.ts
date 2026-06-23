@@ -8,12 +8,13 @@ import {
   getUserById, 
   createUserByAdmin 
 } from '../controllers/user.controller';
+import { Role } from '@prisma/client';
 
 const router = express.Router();
 
 // Apply auth + role checking globally to all admin user routes
 router.use(authenticateUser as any);
-router.use(checkRole(['Administrator']) as any);
+router.use(checkRole([Role.ADMIN]) as any);
 
 // Route: GET /api/admin/users
 router.get('/', getUsersList as any);

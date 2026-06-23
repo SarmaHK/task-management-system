@@ -118,15 +118,26 @@ export default function DashboardLayout({ children }) {
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const getRoleBadge = () => {
-    const role = (user?.role || '').toLowerCase();
-    if (role.includes('admin')) return 'bg-rose-100 text-rose-700 border-rose-200';
-    if (role.includes('manager')) return 'bg-violet-100 text-violet-700 border-violet-200';
+    const role = (user?.role || '').toUpperCase();
+    if (role === 'ADMIN') return 'bg-rose-100 text-rose-700 border-rose-200';
+    if (role === 'PROJECT_MANAGER') return 'bg-violet-100 text-violet-700 border-violet-200';
     return 'bg-emerald-100 text-emerald-700 border-emerald-200';
   };
 
   const NavLink = ({ item }) => {
-    // 3. Hide links that are marked adminOnly if the user is a Collaborator
-    if (item.adminOnly && user?.role === 'Collaborator') return null;
+    const userRole = user?.role;
+
+    // Filter sidebar navigation items by role
+    if (userRole === 'ADMIN') {
+      // Admin has access to Dashboard (with logs), User Management, Projects (read-only)
+      if (item.to === '/tasks' || item.to === '/tasks/kanban' || item.to === '/tasks/create') return null;
+    } else if (userRole === 'PROJECT_MANAGER') {
+      // PM has access to everything except User Management
+      if (item.to === '/admin/users') return null;
+    } else if (userRole === 'COLLABORATOR') {
+      // Collaborator has access to tasks/projects, but not task creation or User Management
+      if (item.to === '/tasks/create' || item.to === '/admin/users') return null;
+    }
 
     const active = location.pathname === item.to || (item.to !== '/dashboard' && location.pathname.startsWith(item.to));
     return (

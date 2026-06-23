@@ -48,30 +48,29 @@ enum ActivityType {
   DELETED
 }
 
-// ─── ROLES ───────────────────────────────────────────
-model Role {
-  id          Int     @id @default(autoincrement())
-  name        String  @unique
-  description String?
-
-  users User[]
-
-  @@map("roles")
+enum Role {
+  ADMIN
+  PROJECT_MANAGER
+  COLLABORATOR
 }
 
-// ─── USERS ───────────────────────────────────────────
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
 model User {
-  id               Int       @id @default(autoincrement())
+  id               Int        @id @default(autoincrement())
   name             String
-  email            String    @unique
-  password         String
-  roleId           Int
-  role             Role      @relation(fields: [roleId], references: [id])
-  isActive         Boolean   @default(true)
-  firstLogin       Boolean   @default(true)
+  email            String     @unique
+  passwordHash     String
+  role             Role       @default(COLLABORATOR)
+  status           UserStatus @default(ACTIVE)
+  firstLogin       Boolean    @default(true)
   resetToken       String?
   resetTokenExpiry DateTime?
-  createdAt        DateTime  @default(now())
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt @default(now())
 
   ownedProjects   Project[]        @relation("OwnedProjects")
   projectMembers  ProjectMember[]
@@ -211,3 +210,30 @@ model TaskActivity {
 
   @@map("task_activities")
 }
+
+// ─── ACCESS REQUESTS & SYSTEM LOGS ────────────────────
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model RegistrationRequest {
+  id        Int           @id @default(autoincrement())
+  name      String
+  email     String        @unique
+  status    RequestStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+
+  @@map("registration_requests")
+}
+
+model SystemLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  message   String
+  createdAt DateTime @default(now())
+
+  @@map("system_logs")
+}
+

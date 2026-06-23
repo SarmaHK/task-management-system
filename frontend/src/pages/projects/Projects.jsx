@@ -113,7 +113,7 @@ export default function Projects() {
   };
 
   const isAllowedToManage = (proj) => {
-    return user?.role === 'Administrator' || proj.ownerId === user?.id;
+    return user?.role === 'PROJECT_MANAGER' && proj.ownerId === user?.id;
   };
 
   return (
@@ -125,7 +125,7 @@ export default function Projects() {
             <h1 className="text-[24px] font-bold text-indigo-950 tracking-tight">Project Workspaces</h1>
             <p className="text-[14px] text-gray-500 font-medium">Manage and collaborate across multiple projects.</p>
           </div>
-          {(user?.role === 'Administrator' || user?.role === 'Project Manager') && (
+          {user?.role === 'PROJECT_MANAGER' && (
             <button
               onClick={() => setShowCreateModal(true)}
               className="px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-all"
