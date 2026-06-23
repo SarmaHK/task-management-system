@@ -28,13 +28,8 @@ export default function TaskCard({ task, onDelete, onStatusChange }) {
 
   return (
     <article
-      // 1. CONDITIONAL NAVIGATION: Only navigate to edit if NOT a Collaborator
-      onClick={() => user?.role !== 'Collaborator' ? navigate(`/tasks/edit/${task.id}`) : null}
-      
-      // 2. CONDITIONAL STYLING: Remove the pointer cursor and hover effects for Collaborators so they know it isn't clickable
-      className={`group bg-white rounded-2xl border border-gray-100 shadow-sm transition-all duration-200 overflow-hidden flex flex-col ${
-        user?.role !== 'Collaborator' ? 'hover:shadow-xl hover:-translate-y-1 cursor-pointer' : 'cursor-default'
-      }`}
+      onClick={() => navigate(`/tasks/${task.id}`)}
+      className="group bg-white rounded-2xl border border-gray-100 shadow-sm transition-all duration-200 overflow-hidden flex flex-col hover:shadow-xl hover:-translate-y-1 cursor-pointer"
     >
       {/* Top accent bar based on priority */}
       <div

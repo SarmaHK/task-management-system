@@ -1,8 +1,9 @@
 import { Response, NextFunction } from 'express';
 import { TaskService } from '../services/task.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
-import { io } from '../server'; // 🟢 1. Import your active WebSockets server
-import { Role } from '@prisma/client';
+import { SocketService } from '../services/socket.service';
+import { Role, UserStatus } from '@prisma/client';
+import { prisma } from '../config/database';
 import { SystemLogger } from '../utils/logger';
 
 export class TaskController {
@@ -20,6 +21,36 @@ export class TaskController {
         success: true,
         message: 'Tasks retrieved successfully',
         data: tasks,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/tasks/collaborators
+  public static async getCollaborators(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const collaborators = await prisma.user.findMany({
+        where: {
+          role: Role.COLLABORATOR,
+          status: UserStatus.ACTIVE,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Collaborators retrieved successfully',
+        data: collaborators,
       });
     } catch (error) {
       next(error);
@@ -55,7 +86,7 @@ export class TaskController {
       }
 
       // 🟢 2. Broadcast that a new task was just created!
-      io.emit('taskCreated', task);
+      SocketService.broadcast('taskCreated', task);
 
       res.status(201).json({
         success: true,
@@ -125,7 +156,7 @@ export class TaskController {
       }
 
       // 🟢 3. Broadcast that this entire task was updated
-      io.emit('taskUpdated', task);
+      SocketService.broadcast('taskUpdated', task);
 
       res.status(200).json({
         success: true,
@@ -152,7 +183,7 @@ export class TaskController {
       await SystemLogger.log('TASK_DELETED', `Task ID ${taskId} was deleted by user ID ${req.user!.id}`);
 
       // 🟢 4. Broadcast the ID of the deleted task so the frontend can remove it from the screen
-      io.emit('taskDeleted', { taskId });
+      SocketService.broadcast('taskDeleted', { taskId });
 
       res.status(200).json({
         success: true,
@@ -184,7 +215,7 @@ export class TaskController {
       await SystemLogger.log('TASK_STATUS_UPDATED', `Task ID ${taskId} status updated to ${status} by user ID ${req.user!.id}`);
 
       // 🟢 5. Broadcast the updated task (useful for moving cards on a Kanban board!)
-      io.emit('taskUpdated', task);
+      SocketService.broadcast('taskUpdated', task);
 
       res.status(200).json({
         success: true,
@@ -217,7 +248,7 @@ export class TaskController {
       await SystemLogger.log('PRIORITY_CHANGED', `Task ID ${taskId} priority updated to ${priority} by user ID ${req.user!.id}`);
 
       // 🟢 6. Broadcast the updated task
-      io.emit('taskUpdated', task);
+      SocketService.broadcast('taskUpdated', task);
 
       res.status(200).json({
         success: true,

@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { CommentService } from '../services/comment.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/AppError';
-import { io } from '../server';
+import { SocketService } from '../services/socket.service';
 import { Role } from '@prisma/client';
 
 export class CommentController {
@@ -17,7 +17,7 @@ export class CommentController {
       const { content } = req.body;
       const comment = await CommentService.addComment(taskId, content, req.user!.id, req.user!.role);
       // Real-time Broadcast: Broadcasts to the exact payload spec from notification-api.md
-      io.emit('COMMENT_ADDED', {
+      SocketService.broadcast('COMMENT_ADDED', {
         type: 'COMMENT_ADDED',
         message: 'New comment added',
         taskId: taskId,

@@ -1,8 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database'; 
+import bcrypt from 'bcryptjs';
 import { io } from '../server';
 import { SystemLogger } from '../utils/logger';
 import { Role, UserStatus } from '@prisma/client';
+import { SocketService } from '../services/socket.service';
 import { UserService } from '../services/user.service';
 import { createUserSchema } from '../validators/user.validator';
 import { z } from 'zod';
@@ -28,7 +30,10 @@ export const deactivateUser = async (req: Request, res: Response): Promise<void>
     await SystemLogger.log('USER_DISABLED', `User ${updatedUser.name} (${updatedUser.email}) was deactivated by Administrator`);
 
     // Broadcast that this user was deactivated so the frontend can log them out
-    io.emit('userDeactivated', { userId: updatedUser.id });
+    SocketService.broadcast('userDeactivated', { userId: updatedUser.id });
+
+    // Disconnect active socket connections for this user immediately
+    SocketService.disconnectUser(updatedUser.id);
 
     await SocketService.sendNotification(updatedUser.id, {
       type: 'ADMIN_UPDATE',
@@ -130,7 +135,7 @@ export const updateUserRole = async (req: Request, res: Response): Promise<void>
     await SystemLogger.log('ROLE_CHANGED', `User ${updatedUser.name} (${updatedUser.email}) role updated to: ${updatedUser.role}`);
 
     // Broadcast that this user's role changed
-    io.emit('userRoleUpdated', { userId: updatedUser.id, role: updatedUser.role });
+    SocketService.broadcast('userRoleUpdated', { userId: updatedUser.id, role: updatedUser.role });
 
     res.status(200).json({
       success: true,
@@ -262,5 +267,53 @@ export const createUserByAdmin = async (req: Request, res: Response, next: NextF
       return;
     }
     next(error);
+  }
+};
+
+// 6. Get Searchable Users (Accessible by PROJECT_MANAGER/ADMIN)
+export const getSearchableUsers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { search, limit, offset } = req.query;
+
+    const searchTerm = String(search || '').trim();
+
+    // Enforce constraints: search must be at least 2 characters
+    if (searchTerm.length < 2) {
+      res.status(200).json({
+        success: true,
+        data: []
+      });
+      return;
+    }
+
+    const takeVal = Math.min(parseInt(String(limit || '20'), 10), 50);
+    const skipVal = Math.max(parseInt(String(offset || '0'), 10), 0);
+
+    const users = await prisma.user.findMany({
+      where: {
+        status: UserStatus.ACTIVE,
+        OR: [
+          { name: { contains: searchTerm, mode: 'insensitive' } },
+          { email: { contains: searchTerm, mode: 'insensitive' } }
+        ]
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true
+      },
+      orderBy: { name: 'asc' },
+      take: takeVal,
+      skip: skipVal
+    });
+
+    res.status(200).json({
+      success: true,
+      data: users
+    });
+  } catch (error) {
+    console.error('Error fetching searchable users:', error);
+    res.status(500).json({ success: false, message: 'Failed to search users' });
   }
 };

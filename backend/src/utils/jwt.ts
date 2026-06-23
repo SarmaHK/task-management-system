@@ -25,7 +25,7 @@ export const generateAccessToken = (payload: object): string => {
  * Generates a long-lived refresh token
  */
 export const generateRefreshToken = (payload: object): string => {
-  return jwt.sign(payload, config.JWT_SECRET, {
+  return jwt.sign(payload, config.JWT_REFRESH_SECRET, {
     expiresIn: '7d', // Refresh token valid for 7 days
   });
 };
@@ -37,4 +37,13 @@ export const generateRefreshToken = (payload: object): string => {
  */
 export const verifyToken = (token: string): any => {
   return jwt.verify(token, config.JWT_SECRET);
+};
+
+/**
+ * Verifies if a refresh token is valid and returns the decoded payload
+ * @param token JWT token string
+ * @returns Decoded payload object
+ */
+export const verifyRefreshToken = (token: string): any => {
+  return jwt.verify(token, config.JWT_REFRESH_SECRET);
 };

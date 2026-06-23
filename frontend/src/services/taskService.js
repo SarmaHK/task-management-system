@@ -78,6 +78,14 @@ export const taskService = {
     const response = await api.get('/tasks/filter', { params });
     return response.data;
   },
+
+  /**
+   * Fetch all active collaborators in the system
+   */
+  getCollaborators: async () => {
+    const response = await api.get('/tasks/collaborators');
+    return response.data;
+  },
 };
 
 export default taskService;

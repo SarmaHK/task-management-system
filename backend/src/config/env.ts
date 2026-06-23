@@ -9,10 +9,11 @@ interface EnvConfig {
   NODE_ENV: string;
   DATABASE_URL: string;
   JWT_SECRET: string;
+  JWT_REFRESH_SECRET: string;
 }
 
 const getConfig = (): EnvConfig => {
-  const { PORT, NODE_ENV, DATABASE_URL, JWT_SECRET } = process.env;
+  const { PORT, NODE_ENV, DATABASE_URL, JWT_SECRET, JWT_REFRESH_SECRET } = process.env;
 
   if (!PORT) {
     console.warn('PORT is not defined in .env, defaulting to 5000');
@@ -23,6 +24,7 @@ const getConfig = (): EnvConfig => {
     NODE_ENV: NODE_ENV || 'development',
     DATABASE_URL: DATABASE_URL || '',
     JWT_SECRET: JWT_SECRET || '',
+    JWT_REFRESH_SECRET: JWT_REFRESH_SECRET || JWT_SECRET || '',
   };
 };
 
