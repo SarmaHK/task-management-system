@@ -66,7 +66,8 @@ model User {
   passwordHash     String
   role             Role       @default(COLLABORATOR)
   status           UserStatus @default(ACTIVE)
-  firstLogin       Boolean    @default(true)
+  mustChangePassword Boolean    @default(true)
+  isEmailVerified  Boolean    @default(false)
   resetToken       String?
   resetTokenExpiry DateTime?
   createdAt        DateTime   @default(now())

@@ -1,10 +1,13 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database'; 
 import bcrypt from 'bcryptjs';
+import { io } from '../server';
 import { SystemLogger } from '../utils/logger';
-import { sendEmail } from '../utils/email';
 import { Role, UserStatus } from '@prisma/client';
 import { SocketService } from '../services/socket.service';
+import { UserService } from '../services/user.service';
+import { createUserSchema } from '../validators/user.validator';
+import { z } from 'zod';
 
 const mapRoleIdToEnum = (roleId: any): Role => {
   const rid = parseInt(roleId);
@@ -40,6 +43,62 @@ export const deactivateUser = async (req: Request, res: Response): Promise<void>
   } catch (error) {
     console.error('Error deactivating user:', error);
     res.status(500).json({ success: false, message: 'Failed to deactivate user' });
+  }
+};
+
+// 1.5 Activate User
+export const activateUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = parseInt(req.params.id);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { status: UserStatus.ACTIVE }
+    });
+
+    await SystemLogger.log('USER_ENABLED', `User ${updatedUser.name} (${updatedUser.email}) was activated by Administrator`);
+
+    io.emit('userActivated', { userId: updatedUser.id });
+
+    res.status(200).json({
+      success: true,
+      message: 'User activated successfully',
+      data: { id: updatedUser.id, email: updatedUser.email, status: updatedUser.status }
+    });
+  } catch (error) {
+    console.error('Error activating user:', error);
+    res.status(500).json({ success: false, message: 'Failed to activate user' });
+  }
+};
+
+// 1.6 Delete User
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = parseInt(req.params.id);
+
+    const userToDelete = await prisma.user.findUnique({ where: { id: userId } });
+    if (!userToDelete) {
+      res.status(404).json({ success: false, message: 'User not found' });
+      return;
+    }
+
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
+    await SystemLogger.log('USER_DELETED', `User ${userToDelete.name} (${userToDelete.email}) was permanently deleted by Administrator`);
+
+    res.status(200).json({
+      success: true,
+      message: 'User deleted successfully'
+    });
+  } catch (error: any) {
+    console.error('Error deleting user:', error);
+    if (error.code === 'P2003') {
+      res.status(400).json({ success: false, message: 'Cannot delete user because they have associated records (projects, tasks, comments, etc.).' });
+      return;
+    }
+    res.status(500).json({ success: false, message: 'Failed to delete user' });
   }
 };
 
@@ -103,7 +162,7 @@ export const getUsersList = async (req: Request, res: Response): Promise<void> =
         name: true,
         email: true,
         status: true,
-        firstLogin: true,
+        mustChangePassword: true,
         createdAt: true,
         role: true
       },
@@ -116,7 +175,7 @@ export const getUsersList = async (req: Request, res: Response): Promise<void> =
       name: u.name,
       email: u.email,
       isActive: u.status === UserStatus.ACTIVE,
-      firstLogin: u.firstLogin,
+      mustChangePassword: u.mustChangePassword,
       createdAt: u.createdAt,
       role: {
         id: u.role === Role.ADMIN ? 1 : u.role === Role.PROJECT_MANAGER ? 2 : 3,
@@ -146,7 +205,7 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
         name: true,
         email: true,
         status: true,
-        firstLogin: true,
+        mustChangePassword: true,
         createdAt: true,
         role: true
       }
@@ -162,7 +221,7 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
       name: user.name,
       email: user.email,
       isActive: user.status === UserStatus.ACTIVE,
-      firstLogin: user.firstLogin,
+      mustChangePassword: user.mustChangePassword,
       createdAt: user.createdAt,
       role: {
         id: user.role === Role.ADMIN ? 1 : user.role === Role.PROJECT_MANAGER ? 2 : 3,
@@ -181,103 +240,22 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
 };
 
 // 5. Create User By Admin
-export const createUserByAdmin = async (req: Request, res: Response): Promise<void> => {
+export const createUserByAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { name, email, roleId } = req.body;
-
-    if (!name || !email || !roleId) {
-      res.status(400).json({ success: false, message: 'Name, email, and roleId are required fields' });
-      return;
-    }
-
-    // Check if email already registered
-    const existing = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
-    });
-
-    if (existing) {
-      res.status(409).json({ success: false, message: 'A user with this email is already registered' });
-      return;
-    }
-
-    const roleEnum = mapRoleIdToEnum(roleId);
-
-    // Generate temporary password matching complexity regex
-    const randAlphaNum = Math.random().toString(36).substring(2, 10);
-    const tempPassword = `@Temp${randAlphaNum}123`;
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(tempPassword, salt);
-
-    const newUser = await prisma.user.create({
-      data: {
-        name,
-        email: email.toLowerCase(),
-        passwordHash: hashedPassword,
-        role: roleEnum,
-        status: UserStatus.ACTIVE,
-        firstLogin: true
-      }
-    });
-
-    // Log administrative action
-    await SystemLogger.log('USER_CREATED', `Direct user created by Admin: ${name} (${email.toLowerCase()}) as role: ${newUser.role}`);
-
-    // Send physical email via Google SMTP (or log simulation fallback)
-    const subject = 'Welcome to TaskFlow - Account Created!';
-    const text = `Hello ${name},
- 
-Your account has been successfully created by the Administrator!
- 
-Your credentials to sign in:
-- Login Page: http://localhost:5173/login
-- Username/Email: ${email}
-- Temporary Password: ${tempPassword}
- 
-Note: On your first login, you will be required to reset this password.
- 
-Best regards,
-TaskFlow Team`;
-
-    const html = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-      <h2 style="color: #4f46e5;">Welcome to TaskFlow!</h2>
-      <p>Hello <strong>${name}</strong>,</p>
-      <p>Your account has been successfully created by the Administrator.</p>
-      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <p style="margin: 0 0 8px 0;"><strong>Your Login Credentials:</strong></p>
-        <p style="margin: 0 0 5px 0;">🔑 <strong>Email:</strong> ${email}</p>
-        <p style="margin: 0;">🔑 <strong>Temporary Password:</strong> <code style="background-color: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #4f46e5;">${tempPassword}</code></p>
-      </div>
-      <p>👉 <a href="http://localhost:5173/login" style="background-color: #4f46e5; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Log In to TaskFlow</a></p>
-      <p style="color: #6b7280; font-size: 13px; margin-top: 15px;">Note: You will be required to change your temporary password immediately upon your first login.</p>
-      <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
-      <p style="font-size: 12px; color: #9ca3af;">This is an automated system notification.</p>
-    </div>`;
-
-    await sendEmail({
-      to: email.toLowerCase(),
-      subject,
-      text,
-      html
-    });
+    const validatedData = createUserSchema.parse(req.body);
+    const result = await UserService.createUserByAdmin(validatedData.name, validatedData.email, validatedData.roleId);
 
     res.status(201).json({
       success: true,
       message: 'User created successfully',
-      data: {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        isActive: newUser.status === UserStatus.ACTIVE,
-        firstLogin: newUser.firstLogin,
-        role: newUser.role,
-        tempPassword: tempPassword
-      }
+      data: result
     });
   } catch (error) {
-    console.error('Error creating user by admin:', error);
-    res.status(500).json({ success: false, message: 'Failed to create user' });
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ success: false, message: error.issues[0].message });
+      return;
+    }
+    next(error);
   }
 };
 

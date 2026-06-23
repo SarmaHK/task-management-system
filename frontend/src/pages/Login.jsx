@@ -40,7 +40,7 @@ export default function Login() {
       setSuccess(true);
       
       setTimeout(() => {
-        if (data.user?.firstLogin) {
+        if (data.user?.mustChangePassword) {
           navigate('/setup-password');
         } else {
           navigate('/dashboard');

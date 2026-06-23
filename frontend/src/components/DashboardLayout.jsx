@@ -138,7 +138,10 @@ export default function DashboardLayout({ children }) {
       if (item.to === '/tasks/create' || item.to === '/admin/users') return null;
     }
 
-    const active = location.pathname === item.to || (item.to !== '/dashboard' && location.pathname.startsWith(item.to));
+    let active = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+    if (item.to === '/tasks' && (location.pathname.startsWith('/tasks/kanban') || location.pathname.startsWith('/tasks/create'))) {
+      active = false;
+    }
     return (
       <button
         onClick={() => { navigate(item.to); setSidebarOpen(false); }}

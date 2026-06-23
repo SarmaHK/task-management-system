@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
-import { sendEmail } from '../utils/email';
+import { EmailService } from '../services/email.service';
 import { SystemLogger } from '../utils/logger';
 import bcrypt from 'bcryptjs';
 import { Role, UserStatus } from '@prisma/client';
@@ -91,7 +91,7 @@ export const approveRegistrationRequest = async (req: Request, res: Response, ne
           passwordHash: hashedPassword,
           role: roleEnum,
           status: UserStatus.ACTIVE,
-          firstLogin: true,
+          mustChangePassword: true,
         }
       });
 
@@ -107,42 +107,14 @@ export const approveRegistrationRequest = async (req: Request, res: Response, ne
     // 6. Log system activity
     await SystemLogger.log('USER_CREATED', `Access request for ${request.name} (${request.email}) approved as role: ${newUser.role}`);
 
-    // 7. Send onboarding email via SMTP
-    const subject = 'Welcome to TaskFlow - Account Approved!';
-    const text = `Hello ${request.name},
- 
-Your request to join TaskFlow has been approved by the Administrator!
- 
-Your temporary credentials to sign in:
-- Login Page: http://localhost:5173/login
-- Username/Email: ${request.email}
-- Temporary Password: ${tempPassword}
- 
-Note: On your first login, you will be required to reset this password.
- 
-Best regards,
-TaskFlow Team`;
-
-    const html = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-      <h2 style="color: #4f46e5;">Welcome to TaskFlow!</h2>
-      <p>Hello <strong>${request.name}</strong>,</p>
-      <p>Your request to join the TaskFlow system has been approved by the Administrator.</p>
-      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
-        <p style="margin: 0 0 8px 0;"><strong>Your Temporary Credentials:</strong></p>
-        <p style="margin: 0 0 5px 0;">🔑 <strong>Email:</strong> ${request.email}</p>
-        <p style="margin: 0;">🔑 <strong>Temporary Password:</strong> <code style="background-color: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #4f46e5;">${tempPassword}</code></p>
-      </div>
-      <p>👉 <a href="http://localhost:5173/login" style="background-color: #4f46e5; color: white; padding: 10px 15px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Log In to TaskFlow</a></p>
-      <p style="color: #6b7280; font-size: 13px; margin-top: 15px;">Note: You will be required to change your temporary password immediately upon your first login before you can access the dashboard.</p>
-      <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
-      <p style="font-size: 12px; color: #9ca3af;">This is an automated system notification.</p>
-    </div>`;
-
-    await sendEmail({
-      to: request.email,
-      subject,
-      text,
-      html
+    // 7. Send onboarding email via SMTP using EmailService
+    EmailService.sendOnboardingEmail(
+      request.name,
+      request.email,
+      newUser.role,
+      tempPassword
+    ).catch(err => {
+      console.error('[EMAIL ERROR] Failed to send async onboarding email:', err);
     });
 
     res.status(200).json({
@@ -218,7 +190,7 @@ TaskFlow Administration`;
       <p style="font-size: 12px; color: #9ca3af;">This is an automated system notification.</p>
     </div>`;
 
-    await sendEmail({
+    await EmailService.sendEmail({
       to: request.email,
       subject,
       text,

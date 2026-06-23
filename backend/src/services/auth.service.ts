@@ -77,6 +77,7 @@ export class AuthService {
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
+        mustChangePassword: newUser.mustChangePassword,
       },
       token,
       refreshToken,
@@ -126,6 +127,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        mustChangePassword: user.mustChangePassword,
       },
       token,
       refreshToken,
@@ -273,7 +275,7 @@ export class AuthService {
       throw new AppError('User not found', 404);
     }
 
-    if (!user.firstLogin) {
+    if (!user.mustChangePassword) {
       throw new AppError('First login password reset has already been completed', 400);
     }
 
@@ -289,7 +291,7 @@ export class AuthService {
       where: { id: userId },
       data: {
         passwordHash: hashedPassword,
-        firstLogin: false,
+        mustChangePassword: false,
       },
     });
   }
