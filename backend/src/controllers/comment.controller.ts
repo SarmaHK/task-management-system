@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { CommentService } from '../services/comment.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/AppError';
+import { io } from '../server';
 
 export class CommentController {
   // POST /api/tasks/:id/comments
@@ -14,6 +15,14 @@ export class CommentController {
 
       const { content } = req.body;
       const comment = await CommentService.addComment(taskId, content, req.user!.id);
+
+      // Real-time Broadcast: Broadcasts to the exact payload spec from notification-api.md
+      io.emit('COMMENT_ADDED', {
+        type: 'COMMENT_ADDED',
+        message: 'New comment added',
+        taskId: taskId,
+        commentId: comment.id
+      });
 
       res.status(201).json({
         success: true,

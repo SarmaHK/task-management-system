@@ -6,7 +6,8 @@ const router = Router();
 
 router.use(authenticateUser as any);
 
-router.patch('/:id', CommentController.updateComment);
-router.delete('/:id', CommentController.deleteComment);
+router.put('/:id', CommentController.updateComment as any);
+router.patch('/:id', CommentController.updateComment as any);
+router.delete('/:id', CommentController.deleteComment as any);
 
 export default router;

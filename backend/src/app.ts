@@ -1,16 +1,19 @@
-import userRoutes from './routes/user.routes';
-import projectRoutes from './routes/project.routes';
-import commentRoutes from './routes/comment.routes';
-import attachmentRoutes from './routes/attachment.routes';
-import notificationRoutes from './routes/notification.routes';
 import express, { Application } from 'express';
 
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+
+// Existing Route Imports
 import healthRoutes from './routes/health.routes';
 import authRoutes from './routes/auth.routes';
 import taskRoutes from './routes/task.routes';
+import userRoutes from './routes/user.routes';
+import projectRoutes from './routes/project.routes';
+import attachmentRoutes from './routes/attachment.routes';
+import commentRoutes from './routes/comment.routes';
+import notificationRoutes from './routes/notification.routes';
+
 import { errorHandler } from './middlewares/error.middleware';
 import { notFoundHandler } from './middlewares/notFound.middleware';
 import swaggerUi from 'swagger-ui-express';
@@ -41,6 +44,8 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/admin/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
+
+// Handle 404
 
 // Handle 404
 app.use(notFoundHandler);
