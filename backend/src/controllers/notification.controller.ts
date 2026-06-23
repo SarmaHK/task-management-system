@@ -1,91 +1,55 @@
-import { Response, NextFunction } from 'express';
-import { prisma } from '../config/database';
+import { Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
+import { prisma } from '../config/database';
 
 export class NotificationController {
-  
-  // 1. View Notifications (GET /api/notifications)
-  public static async getNotifications(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async getNotifications(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.id;
-      const isRead = req.query.isRead === 'true' ? true : req.query.isRead === 'false' ? false : undefined;
-
       const notifications = await prisma.notification.findMany({
-        where: { userId, ...(isRead !== undefined && { isRead }) },
-        orderBy: { createdAt: 'desc' }
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
       });
-
-      res.status(200).json({ success: true, data: notifications });
+      return res.status(200).json(notifications);
     } catch (error) {
-      next(error);
+      return res.status(500).json({ message: 'Internal Server Error' });
     }
   }
 
-  // 2. Mark Notification as Read (PATCH /api/notifications/:id/read)
-  public static async markAsRead(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async markAsRead(req: AuthenticatedRequest, res: Response) {
     try {
-      const notificationId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      const id = Number(req.params.id);
 
-      const existing = await prisma.notification.findUnique({ where: { id: notificationId } });
-      if (!existing) {
-         res.status(404).json({ success: false, message: 'Notification not found' });
-         return;
+      const notification = await prisma.notification.findFirst({
+        where: { id, userId },
+      });
+
+      if (!notification) {
+        return res.status(404).json({ message: 'Notification not found' });
       }
 
-      await prisma.notification.update({
-        where: { id: notificationId },
-        data: { isRead: true }
+      const updated = await prisma.notification.update({
+        where: { id },
+        data: { isRead: true },
       });
 
-      res.status(200).json({ success: true, message: 'Notification marked as read' });
+      return res.status(200).json(updated);
     } catch (error) {
-      next(error);
+      return res.status(500).json({ message: 'Internal Server Error' });
     }
   }
 
-  // 3. Mark All Notifications as Read (PATCH /api/notifications/read-all)
-  public static async markAllAsRead(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  public static async markAllAsRead(req: AuthenticatedRequest, res: Response) {
     try {
       const userId = req.user!.id;
-
       await prisma.notification.updateMany({
         where: { userId, isRead: false },
-        data: { isRead: true }
+        data: { isRead: true },
       });
-
-      res.status(200).json({ success: true, message: 'All notifications marked as read' });
+      return res.status(200).json({ message: 'All notifications marked as read' });
     } catch (error) {
-      next(error);
-    }
-  }
-
-  // 4. Get Unread Count (GET /api/notifications/unread-count)
-  public static async getUnreadCount(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const userId = req.user!.id;
-
-      const unreadCount = await prisma.notification.count({
-        where: { userId, isRead: false }
-      });
-
-      res.status(200).json({ success: true, data: { unreadCount } });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // 5. Delete Notification (DELETE /api/notifications/:id)
-  public static async deleteNotification(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const notificationId = parseInt(req.params.id);
-
-      await prisma.notification.delete({
-        where: { id: notificationId }
-      });
-
-      res.status(200).json({ success: true, message: 'Notification deleted successfully' });
-    } catch (error) {
-      next(error);
+      return res.status(500).json({ message: 'Internal Server Error' });
     }
   }
 }

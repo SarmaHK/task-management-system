@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { TaskController } from '../controllers/task.controller';
+import { CommentController } from '../controllers/comment.controller';
+import { AttachmentController, upload } from '../controllers/attachment.controller';
 import { authenticateUser } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -26,12 +28,18 @@ router.delete('/:id', authenticateUser as any, TaskController.deleteTask);
 
 // ─── Extra Task Routes ──────────────────────────────
 
-
 // PATCH /api/tasks/:id/status → change status only
 router.patch('/:id/status', authenticateUser as any, TaskController.updateTaskStatus);
 
 // PATCH /api/tasks/:id/priority → change priority only
 router.patch('/:id/priority', authenticateUser as any, TaskController.updateTaskPriority);
 
+// ─── Task Comment Routes ───────────────────────────
+router.post('/:id/comments', authenticateUser as any, CommentController.addComment);
+router.get('/:id/comments', authenticateUser as any, CommentController.getCommentsForTask);
+
+// ─── Task Attachment Routes ────────────────────────
+router.post('/:id/attachments', authenticateUser as any, upload.single('file'), AttachmentController.uploadAttachment);
+router.get('/:id/attachments', authenticateUser as any, AttachmentController.getTaskAttachments);
 
 export default router;
