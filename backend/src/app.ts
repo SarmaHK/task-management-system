@@ -13,6 +13,8 @@ import projectRoutes from './routes/project.routes';
 import attachmentRoutes from './routes/attachment.routes';
 import commentRoutes from './routes/comment.routes';
 import notificationRoutes from './routes/notification.routes';
+import requestRoutes from './routes/request.routes';
+import logRoutes from './routes/log.routes';
 
 import { errorHandler } from './middlewares/error.middleware';
 import { notFoundHandler } from './middlewares/notFound.middleware';
@@ -43,6 +45,8 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/attachments', attachmentRoutes);
 app.use('/api/admin/users', userRoutes);
+app.use('/api/admin/requests', requestRoutes);
+app.use('/api/admin/logs', logRoutes);
 app.use('/api/notifications', notificationRoutes);
 
 // Handle 404

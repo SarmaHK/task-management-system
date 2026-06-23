@@ -80,8 +80,7 @@ export default function AttachmentManager({ taskId }) {
   const isAllowedToDelete = (att) => {
     return (
       att.userId === user?.id ||
-      user?.role === 'Project Manager' ||
-      user?.role === 'Administrator'
+      user?.role === 'PROJECT_MANAGER'
     );
   };
 

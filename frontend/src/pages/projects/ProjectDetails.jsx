@@ -35,7 +35,7 @@ export default function ProjectDetails() {
       }
 
       // If authorized, prefetch user list to allow adding members
-      if (user?.role === 'Administrator' || res.data.project.ownerId === user?.id) {
+      if (user?.role === 'PROJECT_MANAGER' && res.data.project.ownerId === user?.id) {
         const usersRes = await adminService.getUsersList();
         if (usersRes.success) {
           setAllUsers(usersRes.data);
@@ -100,7 +100,8 @@ export default function ProjectDetails() {
     );
   }
 
-  const isOwnerOrAdmin = user?.role === 'Administrator' || project.ownerId === user?.id;
+  const isProjectOwner = user?.role === 'PROJECT_MANAGER' && project.ownerId === user?.id;
+  const canCreateTask = user?.role === 'PROJECT_MANAGER' && project.members.some(m => m.userId === user?.id);
 
   return (
     <DashboardLayout>
@@ -120,7 +121,7 @@ export default function ProjectDetails() {
           </div>
           
           <div className="flex gap-3">
-            {isOwnerOrAdmin && (
+            {canCreateTask && (
               <button
                 onClick={() => navigate(`/tasks/create?projectId=${project.id}`)}
                 className="px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-all"
@@ -257,7 +258,7 @@ export default function ProjectDetails() {
                       </div>
                     </div>
 
-                    {isOwnerOrAdmin && m.userId !== project.ownerId && (
+                    {isProjectOwner && m.userId !== project.ownerId && (
                       <button
                         onClick={() => handleRemoveMember(m.id)}
                         className="text-[11px] font-bold text-red-500 hover:text-red-700 p-1 cursor-pointer"
@@ -270,7 +271,7 @@ export default function ProjectDetails() {
               </div>
 
               {/* Add Member Form (Admins & Owners only) */}
-              {isOwnerOrAdmin && (
+              {isProjectOwner && (
                 <form onSubmit={handleAddMember} className="border-t border-gray-50 pt-4 flex flex-col gap-3">
                   <h4 className="text-[13px] font-bold text-indigo-950">Link Team Member</h4>
                   

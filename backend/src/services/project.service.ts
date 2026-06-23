@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
-import { ProjectStatus, ProjectRole } from '@prisma/client';
+import { ProjectStatus, ProjectRole, Role } from '@prisma/client';
 import { SocketService } from './socket.service';
 
 
@@ -47,8 +47,8 @@ export class ProjectService {
   }
 
   // ─── GET ALL PROJECTS ────────────────────────────────
-  public static async getAllProjects(userId: number, userRole: string) {
-    if (userRole === 'Administrator') {
+  public static async getAllProjects(userId: number, userRole: Role) {
+    if (userRole === Role.ADMIN) {
       return prisma.project.findMany({
         where: { isDeleted: false },
         include: {
@@ -75,7 +75,7 @@ export class ProjectService {
   }
 
   // ─── GET PROJECT BY ID & CALCULATE METRICS ───────────
-  public static async getProjectById(projectId: number, userId: number, userRole: string) {
+  public static async getProjectById(projectId: number, userId: number, userRole: Role) {
     const project = await prisma.project.findFirst({
       where: { id: projectId, isDeleted: false },
       include: {
@@ -96,7 +96,7 @@ export class ProjectService {
     // Guard access: Administrator, Owner, or Member only
     const isMember = project.members.some((m) => m.userId === userId);
     const isOwner = project.ownerId === userId;
-    if (userRole !== 'Administrator' && !isOwner && !isMember) {
+    if (userRole !== Role.ADMIN && !isOwner && !isMember) {
       throw new AppError('Access forbidden to this project', 403);
     }
 
@@ -149,16 +149,16 @@ export class ProjectService {
       endDate?: string;
     },
     userId: number,
-    userRole: string
+    userRole: Role
   ) {
     const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project || project.isDeleted) {
       throw new AppError('Project not found', 404);
     }
 
-    // Strict Ownership Enforcement: Admin or Owner only
-    if (userRole !== 'Administrator' && project.ownerId !== userId) {
-      throw new AppError('Only the project creator or an Administrator can modify this project', 403);
+    // Strict Ownership Enforcement: PM Owner only (Admin is read-only)
+    if (project.ownerId !== userId || userRole !== Role.PROJECT_MANAGER) {
+      throw new AppError('Only the project creator can modify this project', 403);
     }
 
     if (data.name && data.name.trim().length < 3) {
@@ -192,22 +192,9 @@ export class ProjectService {
     return updatedProject;
   }
 
-  // ─── DELETE PROJECT (SOFT DELETE) ────────────────────
-  public static async deleteProject(projectId: number, userId: number, userRole: string) {
-    const project = await prisma.project.findUnique({ where: { id: projectId } });
-    if (!project || project.isDeleted) {
-      throw new AppError('Project not found', 404);
-    }
-
-    if (userRole !== 'Administrator' && project.ownerId !== userId) {
-      throw new AppError('Only the project creator or an Administrator can delete this project', 403);
-    }
-
-    // Soft delete
-    return prisma.project.update({
-      where: { id: projectId },
-      data: { isDeleted: true },
-    });
+  // ─── DELETE PROJECT (BLOCKED) ────────────────────────
+  public static async deleteProject(projectId: number, userId: number, userRole: Role) {
+    throw new AppError('Direct project deletion is disabled. Projects can be archived by changing their status.', 403);
   }
 
   // ─── ADD PROJECT MEMBER ──────────────────────────────
@@ -216,15 +203,15 @@ export class ProjectService {
     userIdToLink: number,
     role: ProjectRole,
     userId: number,
-    userRole: string
+    userRole: Role
   ) {
     const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project || project.isDeleted) {
       throw new AppError('Project not found', 404);
     }
 
-    if (userRole !== 'Administrator' && project.ownerId !== userId) {
-      throw new AppError('Only the project creator or an Administrator can manage members', 403);
+    if (project.ownerId !== userId || userRole !== Role.PROJECT_MANAGER) {
+      throw new AppError('Only the project creator can manage members', 403);
     }
 
     // Verify user to add exists
@@ -262,15 +249,15 @@ export class ProjectService {
     projectId: number,
     memberIdToRemove: number,
     userId: number,
-    userRole: string
+    userRole: Role
   ) {
     const project = await prisma.project.findUnique({ where: { id: projectId } });
     if (!project || project.isDeleted) {
       throw new AppError('Project not found', 404);
     }
 
-    if (userRole !== 'Administrator' && project.ownerId !== userId) {
-      throw new AppError('Only the project creator or an Administrator can manage members', 403);
+    if (project.ownerId !== userId || userRole !== Role.PROJECT_MANAGER) {
+      throw new AppError('Only the project creator can manage members', 403);
     }
 
     const member = await prisma.projectMember.findFirst({
@@ -292,7 +279,7 @@ export class ProjectService {
   }
 
   // ─── GET PROJECT TASKS ───────────────────────────────
-  public static async getProjectTasks(projectId: number, userId: number, userRole: string) {
+  public static async getProjectTasks(projectId: number, userId: number, userRole: Role) {
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       include: { members: true },
@@ -304,7 +291,7 @@ export class ProjectService {
 
     const isMember = project.members.some((m) => m.userId === userId);
     const isOwner = project.ownerId === userId;
-    if (userRole !== 'Administrator' && !isOwner && !isMember) {
+    if (userRole !== Role.ADMIN && !isOwner && !isMember) {
       throw new AppError('Access forbidden to this project tasks', 403);
     }
 

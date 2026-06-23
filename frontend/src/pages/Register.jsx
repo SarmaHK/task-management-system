@@ -4,31 +4,23 @@ import PasswordPolicy from '../components/PasswordPolicy';
 import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
-  const [name,            setName]            = useState('');
-  const [email,           setEmail]           = useState('');
-  const [password,        setPassword]        = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword,    setShowPassword]    = useState(false);
-  const [showConfirm,     setShowConfirm]     = useState(false);
-  const [isLoading,       setIsLoading]       = useState(false);
-  const [error,           setError]           = useState('');
-  const [success,         setSuccess]         = useState(false); // Added success state
+  const [name,      setName]      = useState('');
+  const [email,     setEmail]     = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error,     setError]     = useState('');
+  const [success,   setSuccess]   = useState(false);
   const navigate = useNavigate();
   const { register } = useAuth();
-
-  const passwordsMatch    = confirmPassword && password === confirmPassword;
-  const passwordsMismatch = confirmPassword && password !== confirmPassword;
-
-  const confirmBorderClass = passwordsMismatch
-    ? 'border-red-300   focus:border-red-400   focus:shadow-[0_0_0_3px_rgba(239,68,68,0.12)]'
-    : passwordsMatch
-    ? 'border-emerald-300 focus:border-emerald-400 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.12)]'
-    : 'border-gray-200  focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.12)]';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isLoading) return; // Prevent double-clicks
     setError('');
+
+    if (!name.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
 
     // 1. Strict Email Validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -37,39 +29,19 @@ export default function Register() {
       return;
     }
 
-    // 2. Check if passwords match
-    if (password !== confirmPassword) {
-      setError('Passwords do not match. Please check and try again.');
-      return;
-    }
-
-    // 3. Check strict password policy
-    const passed = [
-      password.length >= 8,
-      /[A-Z]/.test(password),
-      /[a-z]/.test(password),
-      /\d/.test(password),
-      /[^A-Za-z0-9]/.test(password)
-    ].filter(Boolean).length;
-
-    if (passed < 5) {
-      setError('Please ensure your password meets all security requirements.');
-      return;
-    }
-
-    // 4. Submit form
+    // 2. Submit form
     setIsLoading(true);
     try {
-      await register(name, email, password);
+      await register(name.trim(), email.trim());
       setIsLoading(false);
       
-      // 5. Trigger Success Toast & Redirect
+      // 3. Trigger Success Toast & Redirect
       setSuccess(true);
       
-      // Redirect to login after 2 seconds
-      setTimeout(() => navigate('/login'), 2200);
+      // Redirect to login after 3.5 seconds
+      setTimeout(() => navigate('/login'), 3500);
     } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
+      setError(err.message || 'Access request failed. Please try again.');
       setIsLoading(false);
     }
   };
@@ -91,7 +63,7 @@ export default function Register() {
             </svg>
           </div>
           <div>
-            <h4 className="text-[14px] font-bold text-gray-900 tracking-tight mb-0.5">Account Created!</h4>
+            <h4 className="text-[14px] font-bold text-gray-900 tracking-tight mb-0.5">Request Submitted!</h4>
             <p className="text-[12.5px] text-gray-500 font-medium">Redirecting to sign in...</p>
           </div>
         </div>
@@ -211,13 +183,13 @@ export default function Register() {
           {/* Header */}
           <div className="mb-7">
             <span className="inline-block text-[12px] font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full mb-3 tracking-wide">
-              🚀 Get started free
+              🔒 Closed Workspace
             </span>
             <h2 className="text-[26px] font-bold text-indigo-950 tracking-tight leading-tight mb-1.5">
-              Create your account
+              Request Platform Access
             </h2>
             <p className="text-[13.5px] text-gray-500 font-medium">
-              Get started free — no credit card required
+              Submit your credentials below. If approved, you will receive an onboarding email containing a temporary password.
             </p>
           </div>
 
@@ -280,110 +252,11 @@ export default function Register() {
               </div>
             </div>
 
-            {/* Password */}
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="reg-password" className="text-[12.5px] font-semibold text-gray-700 tracking-wide">
-                Password
-              </label>
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" width="15" height="15" viewBox="0 0 16 16" fill="none">
-                  <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
-                  <path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                  <circle cx="8" cy="10.5" r="1" fill="currentColor"/>
-                </svg>
-                <input
-                  id="reg-password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  autoComplete="new-password"
-                  placeholder="Create a strong password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={`${inputCls} pr-10`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-500 p-1 rounded transition-colors duration-150"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? (
-                    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                      <path d="M2 2l12 12M6.7 6.8A2 2 0 0011 9.3M5 4.6C3 5.8 1.5 7.7 1.5 8s2.3 4 6.5 4c1.3 0 2.5-.4 3.5-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                      <path d="M13.2 10.7C14.3 9.6 14.5 8.3 14.5 8c0-.3-2.3-4-6.5-4-.8 0-1.5.1-2.2.3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    </svg>
-                  ) : (
-                    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                      <path d="M8 4C3.8 4 1.5 7.7 1.5 8s2.3 4 6.5 4 6.5-3.7 6.5-4-2.3-4-6.5-4z" stroke="currentColor" strokeWidth="1.2"/>
-                      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2"/>
-                    </svg>
-                  )}
-                </button>
-              </div>
-              <PasswordPolicy password={password} />
-            </div>
-
-            {/* Confirm password */}
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="reg-confirm" className="text-[12.5px] font-semibold text-gray-700 tracking-wide">
-                Confirm password
-              </label>
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" width="15" height="15" viewBox="0 0 16 16" fill="none">
-                  <rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
-                  <path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                  <circle cx="8" cy="10.5" r="1" fill="currentColor"/>
-                </svg>
-                <input
-                  id="reg-confirm"
-                  type={showConfirm ? 'text' : 'password'}
-                  required
-                  autoComplete="new-password"
-                  placeholder="Repeat your password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`w-full pl-[38px] pr-24 py-[10px] text-[13.5px] text-gray-900 bg-gray-50 border-[1.5px] rounded-[10px] outline-none transition-all duration-150 font-medium placeholder:text-gray-400 ${confirmBorderClass}`}
-                />
-                {/* Eye button */}
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm(!showConfirm)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-500 p-1 rounded transition-colors duration-150"
-                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
-                >
-                  {showConfirm ? (
-                    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                      <path d="M2 2l12 12M6.7 6.8A2 2 0 0011 9.3M5 4.6C3 5.8 1.5 7.7 1.5 8s2.3 4 6.5 4c1.3 0 2.5-.4 3.5-1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                      <path d="M13.2 10.7C14.3 9.6 14.5 8.3 14.5 8c0-.3-2.3-4-6.5-4-.8 0-1.5.1-2.2.3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    </svg>
-                  ) : (
-                    <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                      <path d="M8 4C3.8 4 1.5 7.7 1.5 8s2.3 4 6.5 4 6.5-3.7 6.5-4-2.3-4-6.5-4z" stroke="currentColor" strokeWidth="1.2"/>
-                      <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2"/>
-                    </svg>
-                  )}
-                </button>
-                {/* Match badge */}
-                {confirmPassword && (
-                  <span
-                    className="absolute right-9 top-1/2 -translate-y-1/2 text-[11px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap pointer-events-none"
-                    style={{
-                      background:   passwordsMatch ? '#f0fdf4' : '#fef2f2',
-                      color:        passwordsMatch ? '#16a34a' : '#dc2626',
-                      borderColor:  passwordsMatch ? '#86efac' : '#fca5a5',
-                    }}
-                  >
-                    {passwordsMatch ? '✓ Match' : '✗ No match'}
-                  </span>
-                )}
-              </div>
-            </div>
-
             {/* Submit */}
             <button
               type="submit"
               disabled={isLoading || success}
-              className={`relative mt-1 w-full py-[11.5px] text-[14.5px] font-bold text-white rounded-[10px] border-none cursor-pointer tracking-tight transition-all duration-150 disabled:opacity-75 disabled:cursor-not-allowed ${
+              className={`relative mt-1.5 w-full py-[11.5px] text-[14.5px] font-bold text-white rounded-[10px] border-none cursor-pointer tracking-tight transition-all duration-150 disabled:opacity-75 disabled:cursor-not-allowed ${
                 success 
                   ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-[0_2px_12px_rgba(5,150,105,0.35)]' 
                   : 'bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-[0_2px_12px_rgba(99,102,241,0.30)] hover:shadow-[0_4px_20px_rgba(99,102,241,0.40)]'
@@ -392,12 +265,12 @@ export default function Register() {
               {isLoading ? (
                 <span className="inline-flex items-center gap-2.5">
                   <span className="inline-block w-3.5 h-3.5 border-2 border-white/35 border-t-white rounded-full animate-spin"/>
-                  Creating account…
+                  Submitting Request…
                 </span>
               ) : success ? (
-                'Redirecting...'
+                'Request Submitted!'
               ) : (
-                'Create account'
+                'Request Access'
               )}
             </button>
           </form>

@@ -62,7 +62,8 @@ export class AttachmentController {
         req.file.originalname,
         req.file.path,
         req.file.mimetype,
-        req.user!.id
+        req.user!.id,
+        req.user!.role
       );
 
       res.status(201).json({
@@ -83,7 +84,7 @@ export class AttachmentController {
         throw new AppError('Invalid task ID', 400);
       }
 
-      const attachments = await AttachmentService.getTaskAttachments(taskId);
+      const attachments = await AttachmentService.getTaskAttachments(taskId, req.user!.id, req.user!.role);
 
       res.status(200).json({
         success: true,
@@ -103,7 +104,7 @@ export class AttachmentController {
         throw new AppError('Invalid attachment ID', 400);
       }
 
-      await AttachmentService.deleteAttachment(attachmentId, req.user!.id, req.user!.role.name);
+      await AttachmentService.deleteAttachment(attachmentId, req.user!.id, req.user!.role);
 
       res.status(200).json({
         success: true,

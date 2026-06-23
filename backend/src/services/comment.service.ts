@@ -1,12 +1,15 @@
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
-import { ActivityType } from '@prisma/client';
+import { ActivityType, Role } from '@prisma/client';
 import { SocketService } from './socket.service';
-
 
 export class CommentService {
   // ─── ADD COMMENT ────────────────────────────────────
-  public static async addComment(taskId: number, content: string, userId: number) {
+  public static async addComment(taskId: number, content: string, userId: number, userRole: Role) {
+    if (userRole === Role.ADMIN) {
+      throw new AppError('Administrators cannot add comments', 403);
+    }
+
     if (!content || content.trim().length === 0) {
       throw new AppError('Comment content cannot be empty', 400);
     }
@@ -14,6 +17,14 @@ export class CommentService {
     const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (!task) {
       throw new AppError('Task not found', 404);
+    }
+
+    // Verify project membership
+    const isMember = await prisma.projectMember.findFirst({
+      where: { projectId: task.projectId, userId }
+    });
+    if (!isMember) {
+      throw new AppError('Access forbidden: You are not a member of this project', 403);
     }
 
     const comment = await prisma.comment.create({
@@ -70,10 +81,20 @@ export class CommentService {
   }
 
   // ─── GET COMMENTS FOR TASK ──────────────────────────
-  public static async getCommentsForTask(taskId: number) {
+  public static async getCommentsForTask(taskId: number, userId: number, userRole: Role) {
     const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (!task) {
       throw new AppError('Task not found', 404);
+    }
+
+    // Verify project membership for PM/Collaborator
+    if (userRole !== Role.ADMIN) {
+      const isMember = await prisma.projectMember.findFirst({
+        where: { projectId: task.projectId, userId }
+      });
+      if (!isMember) {
+        throw new AppError('Access forbidden: You are not a member of this project', 403);
+      }
     }
 
     return prisma.comment.findMany({
@@ -86,14 +107,14 @@ export class CommentService {
   }
 
   // ─── UPDATE COMMENT ──────────────────────────────────
-  public static async updateComment(commentId: number, content: string, userId: number, userRole: string) {
+  public static async updateComment(commentId: number, content: string, userId: number, userRole: Role) {
     const comment = await prisma.comment.findUnique({ where: { id: commentId } });
     if (!comment) {
       throw new AppError('Comment not found', 404);
     }
 
-    // Only author can update comment (or Admin)
-    if (comment.userId !== userId && userRole !== 'Administrator') {
+    // Only author can update comment
+    if (comment.userId !== userId) {
       throw new AppError('You are not authorized to edit this comment', 403);
     }
 
@@ -120,14 +141,20 @@ export class CommentService {
   }
 
   // ─── DELETE COMMENT ──────────────────────────────────
-  public static async deleteComment(commentId: number, userId: number, userRole: string) {
+  public static async deleteComment(commentId: number, userId: number, userRole: Role) {
     const comment = await prisma.comment.findUnique({ where: { id: commentId } });
     if (!comment) {
       throw new AppError('Comment not found', 404);
     }
 
-    // Author, Project Manager, and Admin can delete comments
-    if (comment.userId !== userId && userRole !== 'Project Manager' && userRole !== 'Administrator') {
+    const task = await prisma.task.findUnique({ where: { id: comment.taskId } });
+    const project = task ? await prisma.project.findUnique({ where: { id: task.projectId } }) : null;
+
+    const isCommentCreator = comment.userId === userId;
+    const isProjectOwnerPM = project && project.ownerId === userId && userRole === Role.PROJECT_MANAGER;
+
+    // Author and PM owner can delete comments
+    if (!isCommentCreator && !isProjectOwnerPM) {
       throw new AppError('You do not have permission to delete this comment', 403);
     }
 

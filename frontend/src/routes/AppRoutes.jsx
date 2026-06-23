@@ -39,9 +39,14 @@ function RequireAuth({ children, allowedRoles }) {
   if (user.firstLogin) return <Navigate to="/setup-password" replace />;
 
   if (allowedRoles && allowedRoles.length > 0) {
-    const userRole = (user.role || '').toLowerCase();
-    const hasRole = allowedRoles.some((r) => r.toLowerCase() === userRole);
-    if (!hasRole) return <Navigate to="/dashboard" replace />;
+    const userRole = (user.role || '').toUpperCase();
+    const hasRole = allowedRoles.some((r) => r.toUpperCase() === userRole);
+    if (!hasRole) {
+      if (userRole === 'ADMIN') {
+        return <Navigate to="/admin/users" replace />;
+      }
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return children;
@@ -51,11 +56,17 @@ function RequireAuth({ children, allowedRoles }) {
 function PublicOnly({ children }) {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (user && !user.firstLogin) return <Navigate to="/dashboard" replace />;
+  if (user && !user.firstLogin) {
+    if (user.role === 'ADMIN') {
+      return <Navigate to="/admin/users" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
   return children;
 }
 
-const ALL_ROLES = ['Administrator', 'Project Manager', 'Collaborator'];
+const ALL_ROLES = ['ADMIN', 'PROJECT_MANAGER', 'COLLABORATOR'];
+const NON_ADMIN_ROLES = ['PROJECT_MANAGER', 'COLLABORATOR'];
 
 export default function AppRoutes() {
   return (
@@ -90,7 +101,7 @@ export default function AppRoutes() {
       <Route
         path="/tasks/create"
         element={
-          <RequireAuth allowedRoles={ALL_ROLES}>
+          <RequireAuth allowedRoles={['PROJECT_MANAGER']}>
             <CreateTask />
           </RequireAuth>
         }
@@ -98,7 +109,7 @@ export default function AppRoutes() {
       <Route
         path="/tasks/kanban"
         element={
-          <RequireAuth allowedRoles={ALL_ROLES}>
+          <RequireAuth allowedRoles={NON_ADMIN_ROLES}>
             <KanbanBoard />
           </RequireAuth>
         }
@@ -106,7 +117,7 @@ export default function AppRoutes() {
       <Route
         path="/tasks/edit/:id"
         element={
-          <RequireAuth allowedRoles={ALL_ROLES}>
+          <RequireAuth allowedRoles={['PROJECT_MANAGER']}>
             <EditTask />
           </RequireAuth>
         }
@@ -124,7 +135,7 @@ export default function AppRoutes() {
       <Route 
         path="/admin/users" 
         element={
-          <RequireAuth allowedRoles={['Administrator']}>
+          <RequireAuth allowedRoles={['ADMIN']}>
             <AdminUsers />
           </RequireAuth>
         } 

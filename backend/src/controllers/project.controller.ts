@@ -2,16 +2,18 @@ import { Response, NextFunction } from 'express';
 import { ProjectService } from '../services/project.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/AppError';
+import { Role } from '@prisma/client';
+import { SystemLogger } from '../utils/logger';
 
 export class ProjectController {
   // POST /api/projects
   public static async createProject(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const { name, description, startDate, endDate } = req.body;
-      const userRole = req.user!.role.name;
+      const userRole = req.user!.role;
 
-      if (userRole !== 'Administrator' && userRole !== 'Project Manager') {
-        throw new AppError('Only Administrators and Project Managers can create projects', 403);
+      if (userRole !== Role.PROJECT_MANAGER) {
+        throw new AppError('Only Project Managers can create projects', 403);
       }
 
       const project = await ProjectService.createProject({
@@ -21,6 +23,8 @@ export class ProjectController {
         startDate,
         endDate,
       });
+
+      await SystemLogger.log('PROJECT_CREATED', `Project "${project.name}" (ID: ${project.id}) was created by user ID ${req.user!.id}`);
 
       res.status(201).json({
         success: true,
@@ -35,7 +39,7 @@ export class ProjectController {
   // GET /api/projects
   public static async getAllProjects(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const projects = await ProjectService.getAllProjects(req.user!.id, req.user!.role.name);
+      const projects = await ProjectService.getAllProjects(req.user!.id, req.user!.role);
 
       res.status(200).json({
         success: true,
@@ -55,7 +59,7 @@ export class ProjectController {
         throw new AppError('Invalid project ID', 400);
       }
 
-      const result = await ProjectService.getProjectById(projectId, req.user!.id, req.user!.role.name);
+      const result = await ProjectService.getProjectById(projectId, req.user!.id, req.user!.role);
 
       res.status(200).json({
         success: true,
@@ -81,8 +85,12 @@ export class ProjectController {
         projectId,
         { name, description, status, startDate, endDate },
         req.user!.id,
-        req.user!.role.name
+        req.user!.role
       );
+
+      if (status === 'ARCHIVED') {
+        await SystemLogger.log('PROJECT_ARCHIVED', `Project "${project.name}" (ID: ${project.id}) was archived by user ID ${req.user!.id}`);
+      }
 
       res.status(200).json({
         success: true,
@@ -102,7 +110,7 @@ export class ProjectController {
         throw new AppError('Invalid project ID', 400);
       }
 
-      await ProjectService.deleteProject(projectId, req.user!.id, req.user!.role.name);
+      await ProjectService.deleteProject(projectId, req.user!.id, req.user!.role);
 
       res.status(200).json({
         success: true,
@@ -131,7 +139,7 @@ export class ProjectController {
         parseInt(userId),
         role,
         req.user!.id,
-        req.user!.role.name
+        req.user!.role
       );
 
       res.status(201).json({
@@ -153,7 +161,7 @@ export class ProjectController {
         throw new AppError('Invalid project ID or member ID', 400);
       }
 
-      await ProjectService.removeProjectMember(projectId, memberId, req.user!.id, req.user!.role.name);
+      await ProjectService.removeProjectMember(projectId, memberId, req.user!.id, req.user!.role);
 
       res.status(200).json({
         success: true,
@@ -172,7 +180,7 @@ export class ProjectController {
         throw new AppError('Invalid project ID', 400);
       }
 
-      const tasks = await ProjectService.getProjectTasks(projectId, req.user!.id, req.user!.role.name);
+      const tasks = await ProjectService.getProjectTasks(projectId, req.user!.id, req.user!.role);
 
       res.status(200).json({
         success: true,

@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
-import { ActivityType } from '@prisma/client';
+import { ActivityType, Role } from '@prisma/client';
 import { SocketService } from './socket.service';
 
 
@@ -13,6 +13,7 @@ interface CreateTaskInput {
   priority?: string;
   dueDate?: string;
   creatorId: number;
+  creatorRole: Role;
   assigneeIds?: number[];
 }
 
@@ -23,7 +24,7 @@ interface UpdateTaskInput {
   priority?: string;
   dueDate?: string;
   userId: number;
-  userRole: string;
+  userRole: Role;
   assigneeIds?: number[];
 }
 
@@ -31,18 +32,19 @@ interface UpdateTaskStatusInput {
   taskId: number;
   status: string;
   userId: number;
-  userRole: string;
+  userRole: Role;
 }
 
 interface UpdateTaskPriorityInput {
   taskId: number;
   priority: string;
   userId: number;
-  userRole: string;
+  userRole: Role;
 }
 
 interface FilterTasksInput {
   userId: number;
+  userRole: Role;
   status?: string;
   priority?: string;
   projectId?: number;
@@ -55,11 +57,13 @@ const VALID_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 export class TaskService {
 
   // ─── GET ALL TASKS ──────────────────────────────────
-  public static async getAllTasks(userId: number) {
+  public static async getAllTasks(userId: number, userRole: Role) {
     const tasks = await prisma.task.findMany({
-      where: {
-        assignees: {
-          some: { userId },
+      where: userRole === Role.ADMIN ? {} : {
+        project: {
+          members: {
+            some: { userId },
+          },
         },
       },
       include: {
@@ -85,19 +89,24 @@ export class TaskService {
 
   // ─── CREATE TASK ────────────────────────────────────
   public static async createTask(input: CreateTaskInput) {
-    const { title, description, projectId, priority, dueDate, creatorId, assigneeIds } = input;
+    const { title, description, projectId, priority, dueDate, creatorId, creatorRole, assigneeIds } = input;
 
-    // 1. Validate title
+    // 1. Enforce creator role
+    if (creatorRole !== Role.PROJECT_MANAGER) {
+      throw new AppError('Only Project Managers can create tasks', 403);
+    }
+
+    // 2. Validate title
     if (!title || title.trim().length < 3) {
       throw new AppError('Title is required and must be at least 3 characters', 400);
     }
 
-    // 2. Validate priority
+    // 3. Validate priority
     if (priority && !VALID_PRIORITIES.includes(priority)) {
       throw new AppError('Priority must be LOW, MEDIUM or HIGH', 400);
     }
 
-    // 3. Validate due date
+    // 4. Validate due date
     if (dueDate) {
       const date = new Date(dueDate);
       if (isNaN(date.getTime())) {
@@ -108,7 +117,7 @@ export class TaskService {
       }
     }
 
-    // 4. Check project exists
+    // 5. Check project exists
     const project = await prisma.project.findUnique({
       where: { id: projectId },
     });
@@ -116,7 +125,15 @@ export class TaskService {
       throw new AppError('Project not found', 404);
     }
 
-    // 4.5 Verify project membership for all assignees
+    // 6. Verify project membership for creator
+    const isCreatorMember = await prisma.projectMember.findFirst({
+      where: { projectId, userId: creatorId },
+    });
+    if (!isCreatorMember) {
+      throw new AppError('Access forbidden: You are not a member of this project', 403);
+    }
+
+    // 7. Verify project membership for all assignees
     if (assigneeIds && assigneeIds.length > 0) {
       const projectMembers = await prisma.projectMember.findMany({
         where: {
@@ -130,7 +147,7 @@ export class TaskService {
       }
     }
 
-    // 5. Create the task
+    // 8. Create the task
     const task = await prisma.task.create({
       data: {
         title: title.trim(),
@@ -151,7 +168,7 @@ export class TaskService {
       },
     });
 
-    // 5.5 Create task assignments
+    // 9. Create task assignments
     if (assigneeIds && assigneeIds.length > 0) {
       await prisma.taskAssignment.createMany({
         data: assigneeIds.map((uid) => ({
@@ -180,7 +197,7 @@ export class TaskService {
       }
     }
 
-    // 6. Log activity
+    // 10. Log activity
     await prisma.taskActivity.create({
       data: {
         taskId: task.id,
@@ -194,13 +211,12 @@ export class TaskService {
   }
 
   // ─── GET TASK BY ID ─────────────────────────────────
-  public static async getTaskById(taskId: number, userId: number) {
-    // 1. Validate taskId
+  public static async getTaskById(taskId: number, userId: number, userRole: Role) {
     if (isNaN(taskId)) {
       throw new AppError('Invalid task ID', 400);
     }
 
-    // 2. Find task
+    // Find task
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
@@ -236,9 +252,18 @@ export class TaskService {
       },
     });
 
-    // 3. Task exists?
     if (!task) {
       throw new AppError('Task not found', 404);
+    }
+
+    // Verify access
+    if (userRole !== Role.ADMIN) {
+      const isMember = await prisma.projectMember.findFirst({
+        where: { projectId: task.projectId, userId },
+      });
+      if (!isMember) {
+        throw new AppError('Access forbidden to this task', 403);
+      }
     }
 
     return task;
@@ -248,9 +273,9 @@ export class TaskService {
   public static async updateTask(input: UpdateTaskInput) {
     const { taskId, title, description, priority, dueDate, userId, userRole, assigneeIds } = input;
 
-    // 1. Only Project Manager or Administrator can update
-    if (userRole !== 'Project Manager' && userRole !== 'Administrator') {
-      throw new AppError('Only Project Managers and Administrators can update tasks', 403);
+    // 1. Enforce Role: PM only (Admin is read-only)
+    if (userRole !== Role.PROJECT_MANAGER) {
+      throw new AppError('Only Project Managers can update task details', 403);
     }
 
     // 2. Task exists?
@@ -259,17 +284,25 @@ export class TaskService {
       throw new AppError('Task not found', 404);
     }
 
-    // 3. Validate title
+    // 3. Verify project membership
+    const isMember = await prisma.projectMember.findFirst({
+      where: { projectId: task.projectId, userId },
+    });
+    if (!isMember) {
+      throw new AppError('Access forbidden: You are not a member of this project', 403);
+    }
+
+    // 4. Validate title
     if (title && title.trim().length < 3) {
       throw new AppError('Title must be at least 3 characters', 400);
     }
 
-    // 4. Validate priority
+    // 5. Validate priority
     if (priority && !VALID_PRIORITIES.includes(priority)) {
       throw new AppError('Priority must be LOW, MEDIUM or HIGH', 400);
     }
 
-    // 5. Validate due date
+    // 6. Validate due date
     if (dueDate) {
       const date = new Date(dueDate);
       if (isNaN(date.getTime())) {
@@ -277,7 +310,7 @@ export class TaskService {
       }
     }
 
-    // 5.5 Verify project membership for all assignees
+    // 7. Verify project membership for all assignees
     if (assigneeIds && assigneeIds.length > 0) {
       const projectMembers = await prisma.projectMember.findMany({
         where: {
@@ -291,7 +324,7 @@ export class TaskService {
       }
     }
 
-    // 6. Update task
+    // 8. Update task
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
       data: {
@@ -302,7 +335,7 @@ export class TaskService {
       },
     });
 
-    // 6.5 Update assignments
+    // 9. Update assignments
     if (assigneeIds) {
       await prisma.taskAssignment.deleteMany({ where: { taskId } });
 
@@ -334,7 +367,7 @@ export class TaskService {
       });
     }
 
-    // 7. Log activity
+    // 10. Log activity
     await prisma.taskActivity.create({
       data: {
         taskId,
@@ -348,17 +381,17 @@ export class TaskService {
   }
 
   // ─── DELETE TASK ────────────────────────────────────
-  public static async deleteTask(taskId: number, userId: number, userRole: string) {
-
-    // 1. Only Project Manager can delete
-    if (userRole !== 'Project Manager') {
-      throw new AppError('Only Project Managers can delete tasks', 403);
-    }
-
-    // 2. Task exists?
+  public static async deleteTask(taskId: number, userId: number, userRole: Role) {
+    // 1. Task exists?
     const task = await prisma.task.findUnique({ where: { id: taskId } });
     if (!task) {
       throw new AppError('Task not found', 404);
+    }
+
+    // 2. Only the Project Manager who is the owner of the project can delete tasks
+    const project = await prisma.project.findUnique({ where: { id: task.projectId } });
+    if (!project || project.ownerId !== userId || userRole !== Role.PROJECT_MANAGER) {
+      throw new AppError('Only the project owner (Project Manager) can delete tasks', 403);
     }
 
     // 3. Delete related records first
@@ -386,13 +419,38 @@ export class TaskService {
       throw new AppError('Task not found', 404);
     }
 
-    // 3. Update status
+    // 3. Validate role permissions & project membership
+    if (userRole === Role.COLLABORATOR) {
+      const assignment = await prisma.taskAssignment.findUnique({
+        where: {
+          taskId_userId: {
+            taskId,
+            userId,
+          },
+        },
+      });
+      if (!assignment) {
+        throw new AppError('Collaborators can only update the status of tasks assigned to them', 403);
+      }
+    } else if (userRole === Role.PROJECT_MANAGER) {
+      const isMember = await prisma.projectMember.findFirst({
+        where: { projectId: task.projectId, userId },
+      });
+      if (!isMember) {
+        throw new AppError('Access forbidden: You are not a member of this project', 403);
+      }
+    } else {
+      // ADMIN is read-only, cannot modify task status
+      throw new AppError('Access forbidden: You do not have status update permissions', 403);
+    }
+
+    // 4. Update status
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
       data: { status: status as any },
     });
 
-    // 4. Log activity
+    // 5. Log activity
     await prisma.taskActivity.create({
       data: {
         taskId,
@@ -402,7 +460,7 @@ export class TaskService {
       },
     });
 
-    // 5. Send notifications to task creator and assignees
+    // 6. Send notifications to task creator and assignees
     const taskWithUsers = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
@@ -439,7 +497,7 @@ export class TaskService {
     const { taskId, priority, userId, userRole } = input;
 
     // 1. Only Project Manager can change priority
-    if (userRole !== 'Project Manager') {
+    if (userRole !== Role.PROJECT_MANAGER) {
       throw new AppError('Only Project Managers can change task priority', 403);
     }
 
@@ -454,13 +512,21 @@ export class TaskService {
       throw new AppError('Task not found', 404);
     }
 
-    // 4. Update priority
+    // 4. Verify project membership
+    const isMember = await prisma.projectMember.findFirst({
+      where: { projectId: task.projectId, userId },
+    });
+    if (!isMember) {
+      throw new AppError('Access forbidden: You are not a member of this project', 403);
+    }
+
+    // 5. Update priority
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
       data: { priority: priority as any },
     });
 
-    // 5. Log activity
+    // 6. Log activity
     await prisma.taskActivity.create({
       data: {
         taskId,
@@ -475,7 +541,7 @@ export class TaskService {
 
   // ─── FILTER TASKS ───────────────────────────────────
   public static async filterTasks(input: FilterTasksInput) {
-    const { userId, status, priority, projectId } = input;
+    const { userId, userRole, status, priority, projectId } = input;
 
     // Validate filters if provided
     if (status && !VALID_STATUSES.includes(status)) {
@@ -490,6 +556,14 @@ export class TaskService {
         ...(status && { status: status as any }),
         ...(priority && { priority: priority as any }),
         ...(projectId && { projectId }),
+        // If not Admin, filter by user projects membership
+        ...(userRole !== Role.ADMIN && {
+          project: {
+            members: {
+              some: { userId },
+            },
+          },
+        }),
       },
       include: {
         project: {
