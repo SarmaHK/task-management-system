@@ -80,7 +80,7 @@ export default function DashboardLayout({ children }) {
     const fetchNotifications = async () => {
       try {
         const response = await api.get('/notifications');
-        setNotifications(response.data);
+        setNotifications(response.data.data || []);
       } catch (error) {
         console.error('Error fetching notifications:', error);
       }
@@ -188,7 +188,7 @@ export default function DashboardLayout({ children }) {
 
           <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-gray-50 mb-2">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-[14px] flex-shrink-0">
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
+              {(user?.name || 'U').charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
               <p className="text-[13px] font-bold text-gray-900 truncate">{user?.name}</p>
@@ -237,7 +237,7 @@ export default function DashboardLayout({ children }) {
               )}
             </button>
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold text-[13px]">
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
+              {(user?.name || 'U').charAt(0).toUpperCase()}
             </div>
           </div>
         </header>
