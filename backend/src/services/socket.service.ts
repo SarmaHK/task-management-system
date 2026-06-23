@@ -65,6 +65,46 @@ export class SocketService {
         }
         console.log(`[WS] User ${userId} disconnected from socket ${socket.id}`);
       });
+
+      // --- Messaging System ---
+      socket.on('joinProject', (projectId: string | number) => {
+        socket.join(`project_${projectId}`);
+        console.log(`[WS] User ${userId} joined project_${projectId}`);
+      });
+
+      socket.on('leaveProject', (projectId: string | number) => {
+        socket.leave(`project_${projectId}`);
+        console.log(`[WS] User ${userId} left project_${projectId}`);
+      });
+
+      socket.on('sendMessage', async (data: { projectId: number, content: string }) => {
+        try {
+          // Verify user access (simplistic for socket, controller handles initial auth)
+          // Save message to DB
+          const savedMessage = await prisma.message.create({
+            data: {
+              projectId: data.projectId,
+              senderId: userId,
+              content: data.content
+            },
+            include: {
+              sender: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  role: true
+                }
+              }
+            }
+          });
+
+          // Broadcast to the project room
+          this.io?.to(`project_${data.projectId}`).emit('receiveMessage', savedMessage);
+        } catch (error) {
+          console.error('[WS-MESSAGE] Error saving/sending message:', error);
+        }
+      });
     });
 
     // Start background check for approaching deadlines

@@ -1,106 +1,49 @@
-/**
- * TaskList.jsx — Main task management page with search, filter, sort, pagination
- */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTasks } from '../../hooks/useTasks';
-import TaskCard from '../../components/tasks/TaskCard';
-import TaskStats from '../../components/tasks/TaskStats';
 import DeleteModal from '../../components/tasks/DeleteModal';
 import DashboardLayout from '../../components/DashboardLayout';
+import { format } from 'date-fns';
 
-/* ── Skeleton card ── */
-function SkeletonCard() {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse">
-      <div className="h-2 bg-gray-100 rounded-full w-full mb-4" />
-      <div className="h-4 bg-gray-100 rounded w-3/4 mb-2" />
-      <div className="h-3 bg-gray-50 rounded w-1/2 mb-5" />
-      <div className="h-3 bg-gray-50 rounded w-full mb-2" />
-      <div className="h-3 bg-gray-50 rounded w-4/5 mb-6" />
-      <div className="flex gap-2">
-        <div className="h-5 bg-gray-100 rounded-full w-20" />
-        <div className="ml-auto h-5 bg-gray-50 rounded w-16" />
-      </div>
-    </div>
-  );
-}
+const getStatusBadge = (status, dueDate) => {
+  const isOverdue = dueDate && new Date(dueDate) < new Date() && status !== 'COMPLETED';
+  
+  if (isOverdue) return { label: 'Overdue', bg: 'bg-[#F59E0B]/10', text: 'text-[#F59E0B]', dot: 'bg-[#F59E0B]' };
+  
+  switch(status) {
+    case 'TODO': return { label: 'To Do', bg: 'bg-[#94A3B8]/10', text: 'text-[#64748B]', dot: 'bg-[#94A3B8]' };
+    case 'IN_PROGRESS': return { label: 'In Progress', bg: 'bg-[#3B82F6]/10', text: 'text-[#3B82F6]', dot: 'bg-[#3B82F6]' };
+    case 'REVIEW': return { label: 'In Review', bg: 'bg-[#8B5CF6]/10', text: 'text-[#8B5CF6]', dot: 'bg-[#8B5CF6]' };
+    case 'COMPLETED': return { label: 'Completed', bg: 'bg-[#22C55E]/10', text: 'text-[#22C55E]', dot: 'bg-[#22C55E]' };
+    case 'BLOCKED': return { label: 'Blocked', bg: 'bg-[#EF4444]/10', text: 'text-[#EF4444]', dot: 'bg-[#EF4444]' };
+    default: return { label: status, bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' };
+  }
+};
 
-/* ── Empty state ── */
-function EmptyState({ hasFilters, onClear }) {
-  return (
-    <div className="col-span-full flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center mb-5">
-        <svg className="w-9 h-9 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-        </svg>
-      </div>
-      {hasFilters ? (
-        <>
-          <h3 className="text-[17px] font-bold text-gray-800 mb-1">No tasks match your filters</h3>
-          <p className="text-[13.5px] text-gray-500 mb-4">Try adjusting your search or filter criteria.</p>
-          <button
-            onClick={onClear}
-            className="px-4 py-2 text-indigo-600 font-bold text-[13px] border border-indigo-200 rounded-xl hover:bg-indigo-50 transition-colors cursor-pointer"
-          >
-            Clear Filters
-          </button>
-        </>
-      ) : (
-        <>
-          <h3 className="text-[17px] font-bold text-gray-800 mb-1">No tasks yet</h3>
-          <p className="text-[13.5px] text-gray-500 mb-4">Create your first task to get started.</p>
-        </>
-      )}
-    </div>
-  );
-}
-
-/* ── Error state ── */
-function ErrorState({ message, onRetry }) {
-  return (
-    <div className="col-span-full flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-4">
-        <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
-      <h3 className="text-[17px] font-bold text-gray-800 mb-1">Something went wrong</h3>
-      <p className="text-[13px] text-gray-500 mb-4">{message}</p>
-      <button
-        onClick={onRetry}
-        className="px-4 py-2 bg-indigo-600 text-white font-bold text-[13px] rounded-xl hover:bg-indigo-500 transition-colors cursor-pointer shadow-md"
-      >
-        Try Again
-      </button>
-    </div>
-  );
-}
+const getPriorityIcon = (priority) => {
+  switch(priority) {
+    case 'HIGH': return <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>;
+    case 'MEDIUM': return <svg className="w-4 h-4 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>;
+    case 'LOW': return <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>;
+    default: return null;
+  }
+};
 
 export default function TaskList() {
-  const navigate = useNavigate();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const {
-    paginatedTasks, filteredTasks, loading, error, stats,
+    paginatedTasks, loading, error,
     searchQuery, setSearchQuery,
     statusFilter, setStatusFilter,
     priorityFilter, setPriorityFilter,
-    sortOrder, setSortOrder,
     currentPage, setCurrentPage, totalPages,
     fetchTasks, updateTaskStatus, deleteTask,
   } = useTasks();
 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const hasFilters = searchQuery || statusFilter !== 'ALL' || priorityFilter !== 'ALL';
-
-  const clearFilters = () => {
-    setSearchQuery('');
-    setStatusFilter('ALL');
-    setPriorityFilter('ALL');
-  };
 
   const handleDeleteConfirm = async (id) => {
     setIsDeleting(true);
@@ -112,26 +55,20 @@ export default function TaskList() {
     }
   };
 
-  const selectClass =
-    'px-3 py-2 text-[13px] font-semibold border border-gray-200 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-400 hover:border-gray-300 transition-all cursor-pointer';
-
   return (
     <DashboardLayout>
-      <div className="flex flex-col gap-6 max-w-7xl mx-auto px-4 sm:px-6 py-8">
-
-        {/* Page header */}
+      <div className="flex flex-col gap-6 max-w-[1400px] mx-auto animate-fadeUp">
+        
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-[26px] font-extrabold text-gray-900 tracking-tight">Tasks</h1>
-            <p className="text-[13.5px] text-gray-400 font-medium mt-0.5">
-              {loading ? 'Loading…' : `${filteredTasks.length} task${filteredTasks.length !== 1 ? 's' : ''} found`}
-            </p>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Tasks</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage and track your team's ongoing work.</p>
           </div>
-          {user?.role === 'PROJECT_MANAGER' && (
+          {(user?.role !== 'COLLABORATOR' && user?.role !== 'ADMIN') && (
             <button
-              id="create-task-btn"
               onClick={() => navigate('/tasks/create')}
-              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-[14px] rounded-xl shadow-md hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-400/30 active:scale-[0.97] transition-all duration-150 cursor-pointer flex-shrink-0"
+              className="flex items-center gap-2 px-4 py-2 bg-[#2563EB] text-white font-semibold text-sm rounded-lg shadow-sm hover:bg-blue-700 transition-colors cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -141,149 +78,162 @@ export default function TaskList() {
           )}
         </div>
 
-        {/* Stats */}
-        <TaskStats
-          stats={stats}
-          loading={loading}
-          statusFilter={statusFilter}
-          onFilterChange={(newStatus) => {
-            setStatusFilter(newStatus);
-            setCurrentPage(1);
-          }}
-        />
-
-        {/* Toolbar: search + filters + sort */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 sm:px-5 py-4 flex flex-col sm:flex-row gap-3 sm:items-center">
-          {/* Search */}
-          <div className="relative flex-1 min-w-0">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        {/* Filters Toolbar */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 max-w-sm">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
-              id="task-search"
               type="text"
-              placeholder="Search tasks…"
+              placeholder="Filter tasks..."
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              className="w-full pl-9 pr-4 py-2 text-[13.5px] font-medium border border-gray-200 rounded-xl bg-gray-50/50 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-400 focus:bg-white transition-all"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all shadow-sm"
             />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            )}
           </div>
-
-          <div className="flex gap-2 flex-wrap">
-            {/* Status filter */}
+          <div className="flex gap-2">
             <select
-              id="status-filter"
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
-              className={selectClass}
+              className="px-3 py-2 text-sm font-medium border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
             >
-              <option value="ALL">All Statuses</option>
-              <option value="TODO">⏳ To Do</option>
-              <option value="IN_PROGRESS">🔄 In Progress</option>
-              <option value="COMPLETED">✅ Completed</option>
+              <option value="ALL">Status</option>
+              <option value="TODO">To Do</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="REVIEW">Review</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="BLOCKED">Blocked</option>
             </select>
-
-            {/* Priority filter */}
             <select
-              id="priority-filter"
               value={priorityFilter}
               onChange={(e) => { setPriorityFilter(e.target.value); setCurrentPage(1); }}
-              className={selectClass}
+              className="px-3 py-2 text-sm font-medium border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:border-blue-500 shadow-sm cursor-pointer"
             >
-              <option value="ALL">All Priorities</option>
-              <option value="LOW">▽ Low</option>
-              <option value="MEDIUM">◈ Medium</option>
-              <option value="HIGH">▲ High</option>
+              <option value="ALL">Priority</option>
+              <option value="HIGH">High</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="LOW">Low</option>
             </select>
-
-            {/* Sort */}
-            <select
-              id="sort-order"
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value)}
-              className={selectClass}
-            >
-              <option value="newest">↓ Newest First</option>
-              <option value="oldest">↑ Oldest First</option>
-            </select>
-
-            {/* Clear filters */}
-            {hasFilters && (
-              <button
-                onClick={clearFilters}
-                className="px-3 py-2 text-[12.5px] font-bold text-indigo-600 border border-indigo-200 rounded-xl hover:bg-indigo-50 transition-colors cursor-pointer"
-              >
-                Clear
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Task grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {loading ? (
-            [...Array(6)].map((_, i) => <SkeletonCard key={i} />)
-          ) : error ? (
-            <ErrorState message={error} onRetry={fetchTasks} />
-          ) : paginatedTasks.length === 0 ? (
-            <EmptyState hasFilters={hasFilters} onClear={clearFilters} />
-          ) : (
-            paginatedTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onDelete={setDeleteTarget}
-                onStatusChange={updateTaskStatus}
-              />
-            ))
+        {/* Data Table */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 border-b border-gray-200">
+                  <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 tracking-wider uppercase w-[50%]">Task Name</th>
+                  <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 tracking-wider uppercase">Project</th>
+                  <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 tracking-wider uppercase">Assignee</th>
+                  <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 tracking-wider uppercase">Priority</th>
+                  <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 tracking-wider uppercase">Status</th>
+                  <th className="px-6 py-3.5 text-xs font-semibold text-gray-500 tracking-wider uppercase text-right">Due Date</th>
+                  <th className="px-6 py-3.5 w-10"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr><td colSpan="7" className="px-6 py-8 text-center text-sm text-gray-400">Loading tasks...</td></tr>
+                ) : error ? (
+                  <tr><td colSpan="7" className="px-6 py-8 text-center text-sm text-red-500">{error}</td></tr>
+                ) : paginatedTasks.length === 0 ? (
+                  <tr><td colSpan="7" className="px-6 py-12 text-center text-sm text-gray-500">No tasks found matching your criteria.</td></tr>
+                ) : (
+                  paginatedTasks.map((task) => {
+                    const badge = getStatusBadge(task.status, task.dueDate);
+                    const formattedDate = task.dueDate ? format(new Date(task.dueDate), 'MMM d, yyyy') : '--';
+                    
+                    return (
+                      <tr key={task.id} className="hover:bg-gray-50/50 transition-colors group cursor-pointer" onClick={() => navigate(`/tasks/${task.id}`)}>
+                        <td className="px-6 py-4">
+                          <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{task.title}</p>
+                          {task.description && (
+                            <p className="text-xs text-gray-500 mt-1 truncate max-w-md">{task.description}</p>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-md">
+                            {task.project?.name || 'No Project'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex -space-x-2">
+                            {task.assignees?.length > 0 ? (
+                              task.assignees.slice(0,3).map((a) => (
+                                <div key={a.id} className="w-7 h-7 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-blue-700" title={a.user?.name}>
+                                  {(a.user?.name || 'U').charAt(0)}
+                                </div>
+                              ))
+                            ) : (
+                              <span className="text-xs text-gray-400">Unassigned</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700 capitalize">
+                            {getPriorityIcon(task.priority)}
+                            <span className="text-xs">{task.priority?.toLowerCase()}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${badge.bg} ${badge.text}`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${badge.dot}`}></div>
+                            {badge.label}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right text-sm text-gray-500 font-medium">
+                          {formattedDate}
+                        </td>
+                        <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            {(user?.role !== 'COLLABORATOR' && user?.role !== 'ADMIN') && (
+                              <button 
+                                className="text-gray-400 hover:text-red-500 p-1 cursor-pointer"
+                                onClick={(e) => { e.stopPropagation(); setDeleteTarget(task); }}
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50/50">
+              <span className="text-xs text-gray-500 font-medium">Page {currentPage} of {totalPages}</span>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 border border-gray-300 rounded-md bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 border border-gray-300 rounded-md bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 pt-2">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 text-[13px] font-bold border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-            >
-              ← Prev
-            </button>
-            {[...Array(totalPages)].map((_, i) => (
-              <button
-                key={i + 1}
-                onClick={() => setCurrentPage(i + 1)}
-                className={`w-9 h-9 text-[13px] font-bold rounded-xl border transition-all cursor-pointer ${
-                  currentPage === i + 1
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 text-[13px] font-bold border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
-            >
-              Next →
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Delete modal */}
       {deleteTarget && (
         <DeleteModal
           task={deleteTarget}

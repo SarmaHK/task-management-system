@@ -21,6 +21,8 @@ import KanbanBoard from '../pages/tasks/KanbanBoard';
 import TaskDetails from '../pages/tasks/TaskDetails';
 import Projects from '../pages/projects/Projects';
 import ProjectDetails from '../pages/projects/ProjectDetails';
+import Messages from '../pages/Messages';
+import Calendar from '../pages/Calendar';
 
 // ── Auth guard wrapper ────────────────────────────────────────────────────
 function RequireAuth({ children, allowedRoles }) {
@@ -155,6 +157,26 @@ export default function AppRoutes() {
         element={
           <RequireAuth allowedRoles={ALL_ROLES}>
             <ProjectDetails />
+          </RequireAuth>
+        }
+      />
+
+      {/* Messages */}
+      <Route
+        path="/messages"
+        element={
+          <RequireAuth allowedRoles={NON_ADMIN_ROLES}>
+            <Messages />
+          </RequireAuth>
+        }
+      />
+
+      {/* Calendar */}
+      <Route
+        path="/calendar"
+        element={
+          <RequireAuth allowedRoles={NON_ADMIN_ROLES}>
+            <Calendar />
           </RequireAuth>
         }
       />

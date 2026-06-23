@@ -4,6 +4,7 @@ import { PasswordService } from './password.service';
 import { EmailService } from './email.service';
 import { SystemLogger } from '../utils/logger';
 import { AppError } from '../utils/AppError';
+import { SocketService } from './socket.service';
 
 export class UserService {
   private static mapRoleIdToEnum(roleId: any): Role {
@@ -57,6 +58,13 @@ export class UserService {
     ).catch(err => {
       console.error('[EMAIL ERROR] Failed to send async onboarding email:', err);
     });
+
+    // Send a welcome notification via sockets
+    SocketService.sendNotification(newUser.id, {
+      type: 'ADMIN_UPDATE',
+      title: 'Welcome to TaskFlow!',
+      message: 'Your account has been created successfully. Welcome aboard!'
+    }).catch(err => console.error('[SOCKET ERROR] Failed to send welcome notification:', err));
 
     return {
       id: newUser.id,
