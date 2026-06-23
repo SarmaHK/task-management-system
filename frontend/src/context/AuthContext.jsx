@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import { connectSocket, disconnectSocket } from '../services/socket';
 
 const AuthContext = createContext(null);
 
@@ -88,6 +89,18 @@ export function AuthProvider({ children }) {
 
     return () => clearInterval(interval);
   }, [accessToken, refreshSession]);
+
+  // Manage WebSocket connection lifecycle
+  useEffect(() => {
+    if (accessToken) {
+      connectSocket(accessToken);
+    } else {
+      disconnectSocket();
+    }
+    return () => {
+      disconnectSocket();
+    };
+  }, [accessToken]);
 
   // Login action
   const login = async (email, password) => {

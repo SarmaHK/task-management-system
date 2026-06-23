@@ -1,6 +1,8 @@
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
 import { ActivityType } from '@prisma/client';
+import { SocketService } from './socket.service';
+
 
 // ─── Input Types ─────────────────────────────────────
 
@@ -11,6 +13,7 @@ interface CreateTaskInput {
   priority?: string;
   dueDate?: string;
   creatorId: number;
+  assigneeIds?: number[];
 }
 
 interface UpdateTaskInput {
@@ -21,6 +24,7 @@ interface UpdateTaskInput {
   dueDate?: string;
   userId: number;
   userRole: string;
+  assigneeIds?: number[];
 }
 
 interface UpdateTaskStatusInput {
@@ -81,7 +85,7 @@ export class TaskService {
 
   // ─── CREATE TASK ────────────────────────────────────
   public static async createTask(input: CreateTaskInput) {
-    const { title, description, projectId, priority, dueDate, creatorId } = input;
+    const { title, description, projectId, priority, dueDate, creatorId, assigneeIds } = input;
 
     // 1. Validate title
     if (!title || title.trim().length < 3) {
@@ -112,6 +116,20 @@ export class TaskService {
       throw new AppError('Project not found', 404);
     }
 
+    // 4.5 Verify project membership for all assignees
+    if (assigneeIds && assigneeIds.length > 0) {
+      const projectMembers = await prisma.projectMember.findMany({
+        where: {
+          projectId,
+          userId: { in: assigneeIds },
+        },
+      });
+
+      if (projectMembers.length !== assigneeIds.length) {
+        throw new AppError('One or more assignees are not members of the selected project', 400);
+      }
+    }
+
     // 5. Create the task
     const task = await prisma.task.create({
       data: {
@@ -132,6 +150,35 @@ export class TaskService {
         },
       },
     });
+
+    // 5.5 Create task assignments
+    if (assigneeIds && assigneeIds.length > 0) {
+      await prisma.taskAssignment.createMany({
+        data: assigneeIds.map((uid) => ({
+          taskId: task.id,
+          userId: uid,
+        })),
+      });
+
+      // Log ASSIGNED activity
+      await prisma.taskActivity.create({
+        data: {
+          taskId: task.id,
+          userId: creatorId,
+          action: ActivityType.ASSIGNED,
+          description: `Assigned users were linked to task`,
+        },
+      });
+
+      // Send socket notifications to assignees
+      for (const uid of assigneeIds) {
+        await SocketService.sendNotification(uid, {
+          message: `You have been assigned to task "${task.title}"`,
+          type: 'TASK_ASSIGNED',
+          taskId: task.id,
+        });
+      }
+    }
 
     // 6. Log activity
     await prisma.taskActivity.create({
@@ -199,11 +246,11 @@ export class TaskService {
 
   // ─── UPDATE TASK ────────────────────────────────────
   public static async updateTask(input: UpdateTaskInput) {
-    const { taskId, title, description, priority, dueDate, userId, userRole } = input;
+    const { taskId, title, description, priority, dueDate, userId, userRole, assigneeIds } = input;
 
-    // 1. Only Project Manager can update
-    if (userRole !== 'Project Manager') {
-      throw new AppError('Only Project Managers can update tasks', 403);
+    // 1. Only Project Manager or Administrator can update
+    if (userRole !== 'Project Manager' && userRole !== 'Administrator') {
+      throw new AppError('Only Project Managers and Administrators can update tasks', 403);
     }
 
     // 2. Task exists?
@@ -230,6 +277,20 @@ export class TaskService {
       }
     }
 
+    // 5.5 Verify project membership for all assignees
+    if (assigneeIds && assigneeIds.length > 0) {
+      const projectMembers = await prisma.projectMember.findMany({
+        where: {
+          projectId: task.projectId,
+          userId: { in: assigneeIds },
+        },
+      });
+
+      if (projectMembers.length !== assigneeIds.length) {
+        throw new AppError('One or more assignees are not members of the project', 400);
+      }
+    }
+
     // 6. Update task
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
@@ -240,6 +301,38 @@ export class TaskService {
         dueDate: dueDate ? new Date(dueDate) : undefined,
       },
     });
+
+    // 6.5 Update assignments
+    if (assigneeIds) {
+      await prisma.taskAssignment.deleteMany({ where: { taskId } });
+
+      if (assigneeIds.length > 0) {
+        await prisma.taskAssignment.createMany({
+          data: assigneeIds.map((uid) => ({
+            taskId,
+            userId: uid,
+          })),
+        });
+
+        // Notify new/all assignees about task assignment
+        for (const uid of assigneeIds) {
+          await SocketService.sendNotification(uid, {
+            message: `You are assigned to task "${updatedTask.title}"`,
+            type: 'TASK_ASSIGNED',
+            taskId,
+          });
+        }
+      }
+
+      await prisma.taskActivity.create({
+        data: {
+          taskId,
+          userId,
+          action: ActivityType.ASSIGNED,
+          description: `Task assignments were updated`,
+        },
+      });
+    }
 
     // 7. Log activity
     await prisma.taskActivity.create({
@@ -309,15 +402,34 @@ export class TaskService {
       },
     });
 
-    // 5. Create notification
-    await prisma.notification.create({
-      data: {
-        userId,
-        message: `Task "${task.title}" status changed to ${status}`,
-        type: 'STATUS_CHANGED',
-        taskId,
+    // 5. Send notifications to task creator and assignees
+    const taskWithUsers = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        creator: true,
+        assignees: true,
       },
     });
+
+    if (taskWithUsers) {
+      const recipientIds = new Set<number>();
+      if (taskWithUsers.creatorId !== userId) {
+        recipientIds.add(taskWithUsers.creatorId);
+      }
+      taskWithUsers.assignees.forEach((a) => {
+        if (a.userId !== userId) {
+          recipientIds.add(a.userId);
+        }
+      });
+
+      for (const rId of recipientIds) {
+        await SocketService.sendNotification(rId, {
+          message: `Task "${taskWithUsers.title}" status was changed to ${status}`,
+          type: 'TASK_STATUS_CHANGED',
+          taskId,
+        });
+      }
+    }
 
     return updatedTask;
   }
