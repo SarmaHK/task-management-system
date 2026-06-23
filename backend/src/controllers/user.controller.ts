@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../config/database'; 
 import bcrypt from 'bcryptjs';
+import { io } from '../server';
 
 // 1. Deactivate User
 export const deactivateUser = async (req: Request, res: Response): Promise<void> => {

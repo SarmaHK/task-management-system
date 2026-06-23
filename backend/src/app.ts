@@ -1,8 +1,3 @@
-import userRoutes from './routes/user.routes';
-import projectRoutes from './routes/project.routes';
-import commentRoutes from './routes/comment.routes';
-import attachmentRoutes from './routes/attachment.routes';
-import notificationRoutes from './routes/notification.routes';
 import express, { Application } from 'express';
 
 import cors from 'cors';
@@ -14,8 +9,8 @@ import healthRoutes from './routes/health.routes';
 import authRoutes from './routes/auth.routes';
 import taskRoutes from './routes/task.routes';
 import userRoutes from './routes/user.routes';
-
-// 🟢 1. Import the two new route files you just created
+import projectRoutes from './routes/project.routes';
+import attachmentRoutes from './routes/attachment.routes';
 import commentRoutes from './routes/comment.routes';
 import notificationRoutes from './routes/notification.routes';
 
@@ -50,9 +45,7 @@ app.use('/api/attachments', attachmentRoutes);
 app.use('/api/admin/users', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 
-// 🟢 2. Mount the new routes to the /api path
-app.use('/api', commentRoutes);
-app.use('/api', notificationRoutes);
+// Handle 404
 
 // Handle 404
 app.use(notFoundHandler);
