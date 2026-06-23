@@ -2,6 +2,7 @@ import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
 import { ActivityType, Role } from '@prisma/client';
 import { SocketService } from './socket.service';
+import fs from 'fs';
 
 
 // ─── Input Types ─────────────────────────────────────
@@ -133,7 +134,7 @@ export class TaskService {
       throw new AppError('Access forbidden: You are not a member of this project', 403);
     }
 
-    // 7. Verify project membership for all assignees
+    // 7. Verify project membership for all assignees, automatically add if missing
     if (assigneeIds && assigneeIds.length > 0) {
       const projectMembers = await prisma.projectMember.findMany({
         where: {
@@ -142,8 +143,25 @@ export class TaskService {
         },
       });
 
-      if (projectMembers.length !== assigneeIds.length) {
-        throw new AppError('One or more assignees are not members of the selected project', 400);
+      const existingMemberUserIds = new Set(projectMembers.map((m) => m.userId));
+      const nonMemberUserIds = assigneeIds.filter((id) => !existingMemberUserIds.has(id));
+
+      if (nonMemberUserIds.length > 0) {
+        await prisma.projectMember.createMany({
+          data: nonMemberUserIds.map((uid) => ({
+            projectId,
+            userId: uid,
+            role: 'COLLABORATOR',
+          })),
+          skipDuplicates: true,
+        });
+
+        for (const uid of nonMemberUserIds) {
+          await SocketService.sendNotification(uid, {
+            message: `You have been added to project "${project.name}"`,
+            type: 'PROJECT_MEMBER_ADDED',
+          });
+        }
       }
     }
 
@@ -206,6 +224,39 @@ export class TaskService {
         description: `Task "${task.title}" was created`,
       },
     });
+
+    // 11. Send notifications to task creator and all project members
+    try {
+      // Notify creator/manager
+      await SocketService.sendNotification(creatorId, {
+        message: `Task "${task.title}" was created successfully`,
+        type: 'TASK_CREATED',
+        taskId: task.id,
+      });
+
+      // Notify other project members
+      const projectWithMembers = await prisma.project.findUnique({
+        where: { id: projectId },
+        include: { members: true },
+      });
+
+      if (projectWithMembers) {
+        for (const member of projectWithMembers.members) {
+          if (member.userId !== creatorId) {
+            const isAssignee = assigneeIds?.includes(member.userId);
+            if (!isAssignee) {
+              await SocketService.sendNotification(member.userId, {
+                message: `New task "${task.title}" has been created in project "${projectWithMembers.name}"`,
+                type: 'TASK_CREATED',
+                taskId: task.id,
+              });
+            }
+          }
+        }
+      }
+    } catch (notificationErr) {
+      console.error('[Notification Error] Failed to send task creation notifications:', notificationErr);
+    }
 
     return task;
   }
@@ -310,7 +361,7 @@ export class TaskService {
       }
     }
 
-    // 7. Verify project membership for all assignees
+    // 7. Verify project membership for all assignees, automatically add if missing
     if (assigneeIds && assigneeIds.length > 0) {
       const projectMembers = await prisma.projectMember.findMany({
         where: {
@@ -319,8 +370,28 @@ export class TaskService {
         },
       });
 
-      if (projectMembers.length !== assigneeIds.length) {
-        throw new AppError('One or more assignees are not members of the project', 400);
+      const existingMemberUserIds = new Set(projectMembers.map((m) => m.userId));
+      const nonMemberUserIds = assigneeIds.filter((id) => !existingMemberUserIds.has(id));
+
+      if (nonMemberUserIds.length > 0) {
+        await prisma.projectMember.createMany({
+          data: nonMemberUserIds.map((uid) => ({
+            projectId: task.projectId,
+            userId: uid,
+            role: 'COLLABORATOR',
+          })),
+          skipDuplicates: true,
+        });
+
+        const proj = await prisma.project.findUnique({ where: { id: task.projectId } });
+        if (proj) {
+          for (const uid of nonMemberUserIds) {
+            await SocketService.sendNotification(uid, {
+              message: `You have been added to project "${proj.name}"`,
+              type: 'PROJECT_MEMBER_ADDED',
+            });
+          }
+        }
       }
     }
 
@@ -394,13 +465,19 @@ export class TaskService {
       throw new AppError('Only the project owner (Project Manager) can delete tasks', 403);
     }
 
-    // 3. Delete related records first
-    await prisma.taskActivity.deleteMany({ where: { taskId } });
-    await prisma.taskAssignment.deleteMany({ where: { taskId } });
-    await prisma.comment.deleteMany({ where: { taskId } });
-    await prisma.attachment.deleteMany({ where: { taskId } });
+    // 3. Delete physical files from disk for task attachments
+    const attachments = await prisma.attachment.findMany({ where: { taskId } });
+    for (const attachment of attachments) {
+      if (fs.existsSync(attachment.fileUrl)) {
+        try {
+          fs.unlinkSync(attachment.fileUrl);
+        } catch (err) {
+          console.error('Failed to delete physical file during task cleanup:', err);
+        }
+      }
+    }
 
-    // 4. Delete the task
+    // 4. Delete the task (Dependent rows in other tables will cascade delete via DB constraint)
     await prisma.task.delete({ where: { id: taskId } });
   }
 

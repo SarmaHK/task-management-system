@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AttachmentService } from '../services/attachment.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/AppError';
+import { Role } from '@prisma/client';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -130,6 +131,23 @@ export class AttachmentController {
 
       if (!fs.existsSync(attachment.fileUrl)) {
         throw new AppError('File not found on disk', 404);
+      }
+
+      // Option A: ADMIN has read-only access to all attachments. Other roles must belong to the project.
+      if (req.user!.role !== Role.ADMIN) {
+        const task = await prisma.task.findUnique({ where: { id: attachment.taskId } });
+        if (!task) {
+          throw new AppError('Task associated with this attachment not found', 404);
+        }
+        const isMember = await prisma.projectMember.findFirst({
+          where: {
+            projectId: task.projectId,
+            userId: req.user!.id,
+          },
+        });
+        if (!isMember) {
+          throw new AppError('Access forbidden: You are not a member of this project', 403);
+        }
       }
 
       res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');

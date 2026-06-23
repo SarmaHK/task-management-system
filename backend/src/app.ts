@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.routes';
 import taskRoutes from './routes/task.routes';
 import userRoutes from './routes/user.routes';
 import projectRoutes from './routes/project.routes';
+import generalUserRoutes from './routes/general-user.routes';
 import attachmentRoutes from './routes/attachment.routes';
 import commentRoutes from './routes/comment.routes';
 import notificationRoutes from './routes/notification.routes';
@@ -48,6 +49,7 @@ app.use('/api/admin/users', userRoutes);
 app.use('/api/admin/requests', requestRoutes);
 app.use('/api/admin/logs', logRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', generalUserRoutes);
 
 // Handle 404
 

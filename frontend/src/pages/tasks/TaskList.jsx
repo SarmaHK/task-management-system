@@ -3,6 +3,7 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { useTasks } from '../../hooks/useTasks';
 import TaskCard from '../../components/tasks/TaskCard';
 import TaskStats from '../../components/tasks/TaskStats';
@@ -79,6 +80,7 @@ function ErrorState({ message, onRetry }) {
 
 export default function TaskList() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const {
     paginatedTasks, filteredTasks, loading, error, stats,
     searchQuery, setSearchQuery,
@@ -120,25 +122,35 @@ export default function TaskList() {
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-[26px] font-extrabold text-gray-900 tracking-tight">My Tasks</h1>
+            <h1 className="text-[26px] font-extrabold text-gray-900 tracking-tight">Tasks</h1>
             <p className="text-[13.5px] text-gray-400 font-medium mt-0.5">
               {loading ? 'Loading…' : `${filteredTasks.length} task${filteredTasks.length !== 1 ? 's' : ''} found`}
             </p>
           </div>
-          <button
-            id="create-task-btn"
-            onClick={() => navigate('/tasks/create')}
-            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-[14px] rounded-xl shadow-md hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-400/30 active:scale-[0.97] transition-all duration-150 cursor-pointer flex-shrink-0"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-            New Task
-          </button>
+          {user?.role === 'PROJECT_MANAGER' && (
+            <button
+              id="create-task-btn"
+              onClick={() => navigate('/tasks/create')}
+              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-[14px] rounded-xl shadow-md hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-400/30 active:scale-[0.97] transition-all duration-150 cursor-pointer flex-shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              </svg>
+              New Task
+            </button>
+          )}
         </div>
 
         {/* Stats */}
-        <TaskStats stats={stats} loading={loading} />
+        <TaskStats
+          stats={stats}
+          loading={loading}
+          statusFilter={statusFilter}
+          onFilterChange={(newStatus) => {
+            setStatusFilter(newStatus);
+            setCurrentPage(1);
+          }}
+        />
 
         {/* Toolbar: search + filters + sort */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 sm:px-5 py-4 flex flex-col sm:flex-row gap-3 sm:items-center">

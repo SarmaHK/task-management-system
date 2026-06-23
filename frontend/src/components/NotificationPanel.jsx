@@ -1,6 +1,17 @@
 import { useEffect } from 'react';
 
-const getTitleForType = (type) => {
+const getTitleForType = (type, message = '') => {
+  const msg = message.toLowerCase();
+  
+  if (type === 'ADMIN_UPDATE' || !type) {
+    if (msg.includes('project') && (msg.includes('created') || msg.includes('added') || msg.includes('success'))) {
+      return 'Project Notification';
+    }
+    if (msg.includes('task') && (msg.includes('created') || msg.includes('success'))) {
+      return 'Task Notification';
+    }
+  }
+
   switch (type) {
     case 'TASK_ASSIGNED':
       return 'Task Assigned';
@@ -108,7 +119,7 @@ export default function NotificationPanel({
             >
               <div className="flex justify-between items-start gap-2 mb-1">
                 <h4 className={`text-[13px] font-extrabold tracking-tight ${notif.isRead ? 'text-gray-600' : 'text-indigo-950'}`}>
-                  {getTitleForType(notif.type)}
+                  {getTitleForType(notif.type, notif.message)}
                 </h4>
                 <span className="text-[10px] font-semibold text-gray-400 whitespace-nowrap">
                   {formatTime(notif.createdAt)}

@@ -3,6 +3,7 @@
  */
 import { useState, useEffect } from 'react';
 import projectService from '../../services/projectService';
+import taskService from '../../services/taskService';
 
 const STATUSES = [
   { value: 'TODO', label: '⏳ To Do' },
@@ -46,8 +47,66 @@ export default function TaskForm({
 
   const [projects, setProjects] = useState([]);
   const [projectMembers, setProjectMembers] = useState([]);
+  const [allCollaborators, setAllCollaborators] = useState([]);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  // Fetch all active collaborators in the system
+  useEffect(() => {
+    const fetchCollaborators = async () => {
+      try {
+        const res = await taskService.getCollaborators();
+        if (res.success) {
+          setAllCollaborators(res.data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching system collaborators for form:', err);
+      }
+    };
+    fetchCollaborators();
+  }, []);
+
+  // Unified list of assignable users (merging project members and system collaborators)
+  const getAssignableUsers = () => {
+    const map = new Map();
+
+    // 1. Add current project members (any role)
+    projectMembers.forEach((m) => {
+      if (m.user) {
+        map.set(m.userId, {
+          userId: m.userId,
+          name: m.user.name,
+          email: m.user.email,
+        });
+      }
+    });
+
+    // 2. Add system collaborators
+    allCollaborators.forEach((c) => {
+      if (!map.has(c.id)) {
+        map.set(c.id, {
+          userId: c.id,
+          name: c.name,
+          email: c.email,
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  };
+
+  // Click-outside listener to auto-close collaborator search dropdown
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.collaborator-search-container')) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   // 1. Fetch all projects for the dropdown
   useEffect(() => {
@@ -287,30 +346,119 @@ export default function TaskForm({
         </div>
       </div>
 
-      {/* Task Assignees checklist - limited strictly to project members */}
+      {/* Searchable Task Assignees Selector - including all system collaborators */}
       {form.projectId && (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 collaborator-search-container relative">
           <label className="text-[13px] font-bold text-indigo-950 block mb-1">
-            Task Assignees (Project Members Only)
+            Task Assignees (Collaborators & Members)
           </label>
-          {projectMembers.length === 0 ? (
-            <p className="text-[12px] text-gray-400 italic">No members linked to this project yet.</p>
+
+          {/* Selected assignees chips */}
+          {getAssignableUsers().filter(m => (form.assigneeIds || []).includes(m.userId)).length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {getAssignableUsers()
+                .filter(m => (form.assigneeIds || []).includes(m.userId))
+                .map((m) => (
+                  <span
+                    key={m.userId}
+                    className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-950 px-2.5 py-1 rounded-xl text-[12px] font-bold shadow-sm"
+                  >
+                    <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[9px] font-extrabold flex items-center justify-center">
+                      {(m.name || 'U').charAt(0).toUpperCase()}
+                    </span>
+                    {m.name}
+                    <span className="text-[10px] text-gray-400 font-semibold">(ID: {m.userId})</span>
+                    <button
+                      type="button"
+                      onClick={() => handleAssigneeChange(m.userId, false)}
+                      className="text-indigo-400 hover:text-indigo-600 font-extrabold focus:outline-none ml-1 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+            </div>
+          )}
+
+          {getAssignableUsers().length === 0 ? (
+            <p className="text-[12px] text-gray-400 italic">No assignable users found.</p>
           ) : (
-            <div className="border border-gray-150 rounded-xl p-3 flex flex-wrap gap-3 bg-gray-50/50 max-h-32 overflow-y-auto">
-              {projectMembers.map((m) => (
-                <label 
-                  key={m.userId}
-                  className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-100 text-[12.5px] font-bold text-indigo-950 shadow-sm cursor-pointer select-none"
-                >
-                  <input
-                    type="checkbox"
-                    checked={(form.assigneeIds || []).includes(m.userId)}
-                    onChange={(e) => handleAssigneeChange(m.userId, e.target.checked)}
-                    className="w-3.5 h-3.5 accent-indigo-600 rounded cursor-pointer"
-                  />
-                  {m.user?.name}
-                </label>
-              ))}
+            <div className="relative">
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setDropdownOpen(true);
+                  }}
+                  onFocus={() => setDropdownOpen(true)}
+                  placeholder="Search collaborators by name, email, or ID..."
+                  className={`${inputBase} ${inputNormal} pr-10`}
+                />
+                <div className="absolute right-3 text-gray-400 pointer-events-none">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Search results dropdown */}
+              {dropdownOpen && (
+                <div className="absolute z-50 w-full mt-1.5 bg-white border border-gray-150 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                  {getAssignableUsers().filter((m) => {
+                    const query = searchQuery.toLowerCase().trim();
+                    if (!query) return true;
+                    const nameMatch = m.name?.toLowerCase().includes(query);
+                    const emailMatch = m.email?.toLowerCase().includes(query);
+                    const idMatch = m.userId?.toString() === query;
+                    return nameMatch || emailMatch || idMatch;
+                  }).length === 0 ? (
+                    <div className="p-3.5 text-[12.5px] text-gray-400 italic text-center">
+                      No matching collaborators found.
+                    </div>
+                  ) : (
+                    getAssignableUsers()
+                      .filter((m) => {
+                        const query = searchQuery.toLowerCase().trim();
+                        if (!query) return true;
+                        const nameMatch = m.name?.toLowerCase().includes(query);
+                        const emailMatch = m.email?.toLowerCase().includes(query);
+                        const idMatch = m.userId?.toString() === query;
+                        return nameMatch || emailMatch || idMatch;
+                      })
+                      .map((m) => {
+                        const isSelected = (form.assigneeIds || []).includes(m.userId);
+                        return (
+                          <div
+                            key={m.userId}
+                            onClick={() => {
+                              handleAssigneeChange(m.userId, !isSelected);
+                              setSearchQuery('');
+                              setDropdownOpen(false);
+                            }}
+                            className={`flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50/50 cursor-pointer transition-colors text-[13px] font-medium ${
+                              isSelected ? 'bg-indigo-50/20' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-[11px] font-extrabold flex items-center justify-center">
+                                {(m.name || 'U').charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-indigo-950">{m.name}</span>
+                                <span className="text-[11px] text-gray-400">{m.email} • ID: {m.userId}</span>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <span className="text-indigo-600 font-bold text-[12.5px] pr-1">✓ Selected</span>
+                            )}
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

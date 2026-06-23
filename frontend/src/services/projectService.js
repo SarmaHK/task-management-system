@@ -13,6 +13,14 @@ export const projectService = {
   },
 
   /**
+   * Get searchable active users for member linking
+   */
+  getSearchableUsers: async (searchQuery) => {
+    const response = await api.get('/users', { params: { search: searchQuery } });
+    return response.data;
+  },
+
+  /**
    * Get project details and analytics by ID
    */
   getProjectById: async (id) => {

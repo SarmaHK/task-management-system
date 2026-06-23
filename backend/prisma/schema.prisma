@@ -101,6 +101,7 @@ model Project {
   tasks   Task[]
   members ProjectMember[]
 
+  @@index([ownerId])
   @@map("projects")
 }
 
@@ -115,6 +116,7 @@ model ProjectMember {
   joinedAt  DateTime    @default(now())
 
   @@unique([projectId, userId])
+  @@index([userId])
   @@map("project_members")
 }
 
@@ -138,6 +140,8 @@ model Task {
   attachments    Attachment[]
   taskActivities TaskActivity[]
 
+  @@index([projectId])
+  @@index([creatorId])
   @@map("tasks")
 }
 
@@ -145,12 +149,13 @@ model Task {
 model TaskAssignment {
   id         Int      @id @default(autoincrement())
   taskId     Int
-  task       Task     @relation(fields: [taskId], references: [id])
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId     Int
   user       User     @relation(fields: [userId], references: [id])
   assignedAt DateTime @default(now())
 
   @@unique([taskId, userId])
+  @@index([userId])
   @@map("task_assignments")
 }
 
@@ -159,12 +164,14 @@ model Comment {
   id        Int      @id @default(autoincrement())
   content   String
   taskId    Int
-  task      Task     @relation(fields: [taskId], references: [id])
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([taskId])
+  @@index([userId])
   @@map("comments")
 }
 
@@ -175,11 +182,13 @@ model Attachment {
   fileUrl   String
   mimeType  String?
   taskId    Int
-  task      Task     @relation(fields: [taskId], references: [id])
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
 
+  @@index([taskId])
+  @@index([userId])
   @@map("attachments")
 }
 
@@ -194,6 +203,8 @@ model Notification {
   taskId    Int?
   createdAt DateTime         @default(now())
 
+  @@index([userId])
+  @@index([taskId])
   @@map("notifications")
 }
 
@@ -201,13 +212,15 @@ model Notification {
 model TaskActivity {
   id          Int          @id @default(autoincrement())
   taskId      Int
-  task        Task         @relation(fields: [taskId], references: [id])
+  task        Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId      Int
   user        User         @relation(fields: [userId], references: [id])
   action      ActivityType
   description String?
   createdAt   DateTime     @default(now())
 
+  @@index([taskId])
+  @@index([userId])
   @@map("task_activities")
 }
 

@@ -4,10 +4,12 @@ import DashboardLayout from '../../components/DashboardLayout';
 import taskService from '../../services/taskService';
 import CommentSection from '../../components/comments/CommentSection';
 import AttachmentManager from '../../components/attachments/AttachmentManager';
+import { useAuth } from '../../context/AuthContext';
 
 export default function TaskDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -116,6 +118,9 @@ export default function TaskDetails() {
     );
   }
 
+  const isAssignedCollaborator = task?.assignees?.some(a => a.userId === user?.id);
+  const canUpdateStatus = user?.role === 'PROJECT_MANAGER' || (user?.role === 'COLLABORATOR' && isAssignedCollaborator);
+
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
@@ -144,17 +149,29 @@ export default function TaskDetails() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-bold text-indigo-950">Stage:</span>
-            <select
-              value={task.status}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              className="text-[13px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl cursor-pointer focus:outline-none"
-            >
-              <option value="TODO">⏳ To Do</option>
-              <option value="IN_PROGRESS">🔄 In Progress</option>
-              <option value="COMPLETED">✅ Completed</option>
-            </select>
+          <div className="flex items-center gap-3">
+            {user?.role === 'PROJECT_MANAGER' && (
+              <button
+                onClick={() => navigate(`/tasks/edit/${task.id}`)}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13px] rounded-xl transition-all cursor-pointer shadow-sm hover:scale-[1.02] flex items-center gap-1.5"
+              >
+                <span>✏️</span> Edit Task
+              </button>
+            )}
+
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-bold text-indigo-950">Stage:</span>
+              <select
+                value={task.status}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                disabled={!canUpdateStatus}
+                className={`text-[13px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl focus:outline-none ${!canUpdateStatus ? 'opacity-75 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <option value="TODO">⏳ To Do</option>
+                <option value="IN_PROGRESS">🔄 In Progress</option>
+                <option value="COMPLETED">✅ Completed</option>
+              </select>
+            </div>
           </div>
         </div>
 

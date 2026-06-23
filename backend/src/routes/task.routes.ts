@@ -22,6 +22,9 @@ router.get('/filter', checkRole([Role.ADMIN, Role.PROJECT_MANAGER, Role.COLLABOR
 // POST /api/tasks → create new task (PROJECT_MANAGER only)
 router.post('/', checkRole([Role.PROJECT_MANAGER]) as any, TaskController.createTask);
 
+// GET /api/tasks/collaborators → get all active collaborators in the system
+router.get('/collaborators', checkRole([Role.PROJECT_MANAGER]) as any, TaskController.getCollaborators);
+
 // GET /api/tasks/:id → get single task
 router.get('/:id', checkRole([Role.ADMIN, Role.PROJECT_MANAGER, Role.COLLABORATOR]) as any, TaskController.getTaskById);
 

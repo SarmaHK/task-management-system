@@ -17,7 +17,7 @@ export class SocketService {
       },
     });
 
-    this.io.use((socket: Socket, next) => {
+    this.io.use(async (socket: Socket, next) => {
       try {
         const token = socket.handshake.auth?.token || socket.handshake.query?.token;
         if (!token) {
@@ -27,6 +27,15 @@ export class SocketService {
         const decoded = verifyToken(token as string);
         if (!decoded || !decoded.userId) {
           return next(new Error('Invalid token payload'));
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { id: Number(decoded.userId) },
+          select: { status: true },
+        });
+
+        if (!user || user.status !== 'ACTIVE') {
+          return next(new Error('User account is deactivated or not found'));
         }
 
         socket.data = { userId: Number(decoded.userId) };
@@ -75,6 +84,26 @@ export class SocketService {
 
   public static emitToUsers(userIds: number[], event: string, data: any): void {
     userIds.forEach(userId => this.emitToUser(userId, event, data));
+  }
+
+  public static broadcast(event: string, data: any): void {
+    if (this.io) {
+      this.io.emit(event, data);
+    }
+  }
+
+  public static disconnectUser(userId: number): void {
+    const socketIds = this.userSockets.get(userId);
+    if (socketIds && this.io) {
+      for (const socketId of socketIds) {
+        const socketObj = this.io.sockets.sockets.get(socketId);
+        if (socketObj) {
+          socketObj.disconnect(true);
+        }
+      }
+      this.userSockets.delete(userId);
+      console.log(`[WS] Terminated active socket connections for suspended user ID ${userId}`);
+    }
   }
 
   /**

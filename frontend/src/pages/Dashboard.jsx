@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
 import adminService from '../services/adminService';
+import projectService from '../services/projectService';
+import taskService from '../services/taskService';
+import api from '../services/api';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -10,38 +13,73 @@ export default function Dashboard() {
 
   const isAdmin = user?.role === 'ADMIN';
 
-  // Admin stats and logs state
+  // Stats and logs state
   const [adminStats, setAdminStats] = useState({ totalUsers: 0, pendingRequests: 0, totalLogs: 0 });
+  const [nonAdminStats, setNonAdminStats] = useState({ assignedTasks: 0, dueToday: 0, projects: 0, unreadNotifications: 0 });
   const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(isAdmin);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!isAdmin) return;
-
-    const fetchAdminData = async () => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        const [statsRes, logsRes] = await Promise.all([
-          adminService.getAdminStats(),
-          adminService.getSystemLogs(),
-        ]);
-        if (statsRes.success) {
-          setAdminStats(statsRes.data);
-        }
-        if (logsRes.success) {
-          setLogs(logsRes.data);
+        if (isAdmin) {
+          const [statsRes, logsRes] = await Promise.all([
+            adminService.getAdminStats(),
+            adminService.getSystemLogs(),
+          ]);
+          if (statsRes.success) {
+            setAdminStats(statsRes.data);
+          }
+          if (logsRes.success) {
+            setLogs(logsRes.data);
+          }
+        } else {
+          // Fetch non-admin dashboard stats
+          const [projectsRes, tasksRes, notificationsRes] = await Promise.all([
+            projectService.getAllProjects(),
+            taskService.getAllTasks(),
+            api.get('/notifications'),
+          ]);
+
+          const projectsList = projectsRes.data || projectsRes || [];
+          const tasksList = tasksRes.data || tasksRes || [];
+          const notificationsList = notificationsRes.data?.data || notificationsRes.data || [];
+
+          // Assigned Tasks are tasks where the user is an assignee
+          const assignedTasks = tasksList.filter(t => t.assignees?.some(a => a.userId === user?.id));
+          
+          // Tasks due today: pending tasks (TODO or IN_PROGRESS) where dueDate is today
+          const nowStr = new Date().toISOString().split('T')[0];
+          const dueToday = assignedTasks.filter(t => {
+            if (t.status === 'COMPLETED' || !t.dueDate) return false;
+            return t.dueDate.split('T')[0] === nowStr;
+          }).length;
+
+          // Unread notifications
+          const unreadNotifications = notificationsList.filter(n => !n.isRead).length;
+
+          setNonAdminStats({
+            assignedTasks: assignedTasks.length,
+            dueToday,
+            projects: projectsList.length,
+            unreadNotifications,
+          });
         }
       } catch (err) {
-        console.error('Error fetching admin dashboard data:', err);
-        setError('Failed to load system metrics and logs.');
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load dashboard metrics.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAdminData();
-  }, [isAdmin]);
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [isAdmin, user]);
 
   const getRoleBadgeColor = () => {
     const role = (user?.role || '').toUpperCase();
@@ -63,9 +101,9 @@ export default function Dashboard() {
       ];
     }
     return [
-      { label: 'Assigned Tasks', value: '5', icon: '⏱️', change: '2 due today' },
-      { label: 'Projects', value: '3', icon: '📁', change: 'Active membership' },
-      { label: 'Notifications', value: '4', icon: '🔔', change: 'Unread alerts' },
+      { label: 'Assigned Tasks', value: nonAdminStats.assignedTasks.toString(), icon: '⏱️', change: `${nonAdminStats.dueToday} due today`, path: '/tasks' },
+      { label: 'Projects', value: nonAdminStats.projects.toString(), icon: '📁', change: 'Active membership', path: '/projects' },
+      { label: 'Notifications', value: nonAdminStats.unreadNotifications.toString(), icon: '🔔', change: 'Unread alerts', path: '/dashboard?notifications=open' },
     ];
   };
 
@@ -121,24 +159,13 @@ export default function Dashboard() {
             </div>
             
             <div className="flex flex-wrap gap-3 flex-shrink-0">
-              {isAdmin ? (
+              {isAdmin && (
                 <button
                   onClick={() => navigate('/admin/users')}
                   className="px-4 py-2.5 bg-white text-indigo-950 font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-transform duration-100 hover:scale-[1.02]"
                 >
                   👥 Manage Users
                 </button>
-              ) : (
-                <>
-                  {user?.role !== 'COLLABORATOR' && (
-                    <button
-                      onClick={() => navigate('/tasks/create')}
-                      className="px-4 py-2.5 bg-white text-indigo-950 font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-transform duration-100 hover:scale-[1.02]"
-                    >
-                      🆕 New Task
-                    </button>
-                  )}
-                </>
               )}
             </div>
           </div>

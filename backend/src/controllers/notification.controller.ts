@@ -32,6 +32,11 @@ export class NotificationController {
          return;
       }
 
+      if (existing.userId !== req.user!.id) {
+        res.status(403).json({ success: false, message: 'Access forbidden: This notification does not belong to you' });
+        return;
+      }
+
       await prisma.notification.update({
         where: { id: notificationId },
         data: { isRead: true }
@@ -78,6 +83,16 @@ export class NotificationController {
   public static async deleteNotification(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const notificationId = parseInt(req.params.id);
+      const existing = await prisma.notification.findUnique({ where: { id: notificationId } });
+      if (!existing) {
+         res.status(404).json({ success: false, message: 'Notification not found' });
+         return;
+      }
+
+      if (existing.userId !== req.user!.id) {
+        res.status(403).json({ success: false, message: 'Access forbidden: This notification does not belong to you' });
+        return;
+      }
 
       await prisma.notification.delete({
         where: { id: notificationId }

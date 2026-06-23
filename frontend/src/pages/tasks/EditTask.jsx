@@ -80,6 +80,8 @@ export default function EditTask() {
         priority: task.priority || 'MEDIUM',
         status: task.status || 'TODO',
         dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+        projectId: task.projectId || '',
+        assignees: task.assignees || [],
       }
     : {};
 

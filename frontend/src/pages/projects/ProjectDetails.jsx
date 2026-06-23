@@ -19,6 +19,7 @@ export default function ProjectDetails() {
   // Member Form state
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState('COLLABORATOR');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchProjectData = async () => {
     try {
@@ -32,14 +33,6 @@ export default function ProjectDetails() {
       const tasksRes = await projectService.getProjectTasks(parseInt(id));
       if (tasksRes.success) {
         setTasks(tasksRes.data);
-      }
-
-      // If authorized, prefetch user list to allow adding members
-      if (user?.role === 'PROJECT_MANAGER' && res.data.project.ownerId === user?.id) {
-        const usersRes = await adminService.getUsersList();
-        if (usersRes.success) {
-          setAllUsers(usersRes.data);
-        }
       }
     } catch (err) {
       console.error('Error fetching project data:', err);
@@ -102,6 +95,27 @@ export default function ProjectDetails() {
 
   const isProjectOwner = user?.role === 'PROJECT_MANAGER' && project.ownerId === user?.id;
   const canCreateTask = user?.role === 'PROJECT_MANAGER' && project.members.some(m => m.userId === user?.id);
+
+  useEffect(() => {
+    if (!isProjectOwner) return;
+    if (searchQuery.trim().length < 2) {
+      setAllUsers([]);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        const res = await projectService.getSearchableUsers(searchQuery);
+        if (res.success) {
+          setAllUsers(res.data);
+        }
+      } catch (err) {
+        console.error('Error searching users:', err);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, isProjectOwner]);
 
   return (
     <DashboardLayout>
@@ -276,6 +290,14 @@ export default function ProjectDetails() {
                   <h4 className="text-[13px] font-bold text-indigo-950">Link Team Member</h4>
                   
                   <div>
+                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Search User (Type &gt;= 2 chars)</label>
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Type name or email..."
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
+                    />
                     <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Select User</label>
                     <select
                       required
@@ -283,12 +305,20 @@ export default function ProjectDetails() {
                       onChange={(e) => setSelectedUserId(e.target.value)}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
-                      <option value="">-- Choose User --</option>
-                      {allUsers
-                        .filter(u => !project.members.some(pm => pm.userId === u.id))
-                        .map(u => (
-                          <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                        ))}
+                      {searchQuery.trim().length < 2 ? (
+                        <option value="">-- Type search query above --</option>
+                      ) : allUsers.length === 0 ? (
+                        <option value="">No matching users found</option>
+                      ) : (
+                        <>
+                          <option value="">-- Choose User --</option>
+                          {allUsers
+                            .filter(u => !project.members.some(pm => pm.userId === u.id))
+                            .map(u => (
+                              <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                            ))}
+                        </>
+                      )}
                     </select>
                   </div>
 

@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
-import { generateAccessToken, generateRefreshToken, verifyToken } from '../utils/jwt';
+import { generateAccessToken, generateRefreshToken, verifyToken, verifyRefreshToken } from '../utils/jwt';
 import { Role, UserStatus } from '@prisma/client';
 import {
   RegisterInput,
@@ -304,7 +304,7 @@ export class AuthService {
 
     let decoded: any;
     try {
-      decoded = verifyToken(token);
+      decoded = verifyRefreshToken(token);
     } catch (err) {
       throw new AppError('Invalid or expired refresh token', 401);
     }
