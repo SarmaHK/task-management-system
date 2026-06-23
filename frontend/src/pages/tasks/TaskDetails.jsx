@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/DashboardLayout';
 import taskService from '../../services/taskService';
 import CommentSection from '../../components/comments/CommentSection';
 import AttachmentManager from '../../components/attachments/AttachmentManager';
 
 export default function TaskDetails() {
+  const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const [task, setTask] = useState(null);
@@ -149,7 +151,8 @@ export default function TaskDetails() {
             <select
               value={task.status}
               onChange={(e) => handleStatusChange(e.target.value)}
-              className="text-[13px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl cursor-pointer focus:outline-none"
+              disabled={user?.role === 'ADMIN'}
+              className="text-[13px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl cursor-pointer focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <option value="TODO">⏳ To Do</option>
               <option value="IN_PROGRESS">🔄 In Progress</option>

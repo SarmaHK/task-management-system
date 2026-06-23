@@ -91,23 +91,27 @@ export default function AttachmentManager({ taskId }) {
       </h3>
 
       {/* Upload Form */}
-      <form onSubmit={handleUpload} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-        <input
-          id="task-file-input"
-          type="file"
-          accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg"
-          onChange={handleFileChange}
-          className="flex-1 text-[13px] border border-gray-200 rounded-xl px-3 py-1.5 bg-white file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[12px] file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-        />
-        <button
-          type="submit"
-          disabled={!file || uploading}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13px] rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {uploading ? 'Uploading...' : 'Upload'}
-        </button>
-      </form>
-      <p className="text-[11px] text-gray-400">Supported: PDF, DOCX, XLSX, PNG, JPG (Max: 10MB)</p>
+      {user?.role !== 'ADMIN' && (
+        <>
+          <form onSubmit={handleUpload} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+            <input
+              id="task-file-input"
+              type="file"
+              accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg"
+              onChange={handleFileChange}
+              className="flex-1 text-[13px] border border-gray-200 rounded-xl px-3 py-1.5 bg-white file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[12px] file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+            />
+            <button
+              type="submit"
+              disabled={!file || uploading}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13px] rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {uploading ? 'Uploading...' : 'Upload'}
+            </button>
+          </form>
+          <p className="text-[11px] text-gray-400">Supported: PDF, DOCX, XLSX, PNG, JPG (Max: 10MB)</p>
+        </>
+      )}
 
       {/* File List */}
       {loading ? (

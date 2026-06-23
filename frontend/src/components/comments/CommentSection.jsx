@@ -87,21 +87,23 @@ export default function CommentSection({ taskId }) {
       </h3>
 
       {/* New comment input */}
-      <form onSubmit={handleSendComment} className="flex gap-2">
-        <input
-          type="text"
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Write a comment..."
-          className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-[13.5px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <button
-          type="submit"
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13px] rounded-xl cursor-pointer"
-        >
-          Send
-        </button>
-      </form>
+      {user?.role !== 'ADMIN' && (
+        <form onSubmit={handleSendComment} className="flex gap-2">
+          <input
+            type="text"
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Write a comment..."
+            className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-[13.5px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13px] rounded-xl cursor-pointer"
+          >
+            Send
+          </button>
+        </form>
+      )}
 
       {/* Comment list feed */}
       {loading ? (

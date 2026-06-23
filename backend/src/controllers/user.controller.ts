@@ -30,6 +30,11 @@ export const deactivateUser = async (req: Request, res: Response): Promise<void>
     // Broadcast that this user was deactivated so the frontend can log them out
     io.emit('userDeactivated', { userId: updatedUser.id });
 
+    await SocketService.sendNotification(updatedUser.id, {
+      type: 'ADMIN_UPDATE',
+      title: 'Account Deactivated',
+      message: 'Your account has been deactivated by an Administrator.'
+    });
     res.status(200).json({
       success: true,
       message: 'User deactivated successfully',
@@ -54,6 +59,12 @@ export const activateUser = async (req: Request, res: Response): Promise<void> =
     await SystemLogger.log('USER_ENABLED', `User ${updatedUser.name} (${updatedUser.email}) was activated by Administrator`);
 
     io.emit('userActivated', { userId: updatedUser.id });
+
+    await SocketService.sendNotification(updatedUser.id, {
+      type: 'ADMIN_UPDATE',
+      title: 'Account Activated',
+      message: 'Your account has been activated by an Administrator.'
+    });
 
     res.status(200).json({
       success: true,

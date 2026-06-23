@@ -3,251 +3,411 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import DashboardLayout from '../components/DashboardLayout';
 import adminService from '../services/adminService';
+import taskService from '../services/taskService';
+import projectService from '../services/projectService';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-
   const isAdmin = user?.role === 'ADMIN';
 
-  // Admin stats and logs state
-  const [adminStats, setAdminStats] = useState({ totalUsers: 0, pendingRequests: 0, totalLogs: 0 });
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(isAdmin);
-  const [error, setError] = useState(null);
+  // State for task metrics (Users & PMs)
+  const [metrics, setMetrics] = useState({
+    totalProjects: 0,
+    activeTasks: 0,
+    completedTasks: 0,
+    overdueTasks: 0,
+  });
+  
+  // State for admin metrics
+  const [adminMetrics, setAdminMetrics] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalProjects: 0,
+    recentUsers: [],
+  });
+
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAdmin) return;
-
-    const fetchAdminData = async () => {
+    const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const [statsRes, logsRes] = await Promise.all([
-          adminService.getAdminStats(),
-          adminService.getSystemLogs(),
-        ]);
-        if (statsRes.success) {
-          setAdminStats(statsRes.data);
-        }
-        if (logsRes.success) {
-          setLogs(logsRes.data);
+        
+        if (isAdmin) {
+          const [usersRes, projRes] = await Promise.all([
+            adminService.getUsersList(),
+            projectService.getProjects(),
+          ]);
+          
+          if (usersRes.success && projRes.success) {
+            const users = usersRes.data;
+            const projects = projRes.data;
+            
+            const activeUsers = users.filter(u => u.isActive).length;
+            const recentUsers = [...users].sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 5);
+
+            setAdminMetrics({
+              totalUsers: users.length,
+              activeUsers,
+              totalProjects: projects.length,
+              recentUsers,
+            });
+          }
+        } else {
+          const [tasksRes, projRes] = await Promise.all([
+            taskService.getTasks(),
+            projectService.getProjects(),
+          ]);
+
+          if (tasksRes.success && projRes.success) {
+            const tasks = tasksRes.data;
+            const projects = projRes.data;
+            
+            const activeTasks = tasks.filter(t => t.status !== 'COMPLETED').length;
+            const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length;
+            const overdueTasks = tasks.filter(t => {
+              if (t.status === 'COMPLETED') return false;
+              return new Date(t.dueDate) < new Date();
+            }).length;
+
+            setMetrics({
+              totalProjects: projects.length,
+              activeTasks,
+              completedTasks,
+              overdueTasks
+            });
+          }
         }
       } catch (err) {
-        console.error('Error fetching admin dashboard data:', err);
-        setError('Failed to load system metrics and logs.');
+        console.error('Error fetching dashboard data:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAdminData();
+    fetchDashboardData();
   }, [isAdmin]);
 
-  const getRoleBadgeColor = () => {
-    const role = (user?.role || '').toUpperCase();
-    if (role === 'ADMIN') {
-      return 'bg-rose-50 text-rose-800 border-rose-200';
-    }
-    if (role === 'PROJECT_MANAGER') {
-      return 'bg-violet-50 text-violet-800 border-violet-200';
-    }
-    return 'bg-emerald-50 text-emerald-800 border-emerald-200';
-  };
+  const MetricCard = ({ title, value, icon, color, trend }) => (
+    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-4">
+        <div className={`p-3 rounded-xl ${color}`}>
+          {icon}
+        </div>
+        {trend && (
+          <span className="flex items-center text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-lg">
+            ↑ {trend}
+          </span>
+        )}
+      </div>
+      <div>
+        <h3 className="text-gray-500 text-sm font-medium mb-1">{title}</h3>
+        <p className="text-3xl font-bold text-gray-900 tracking-tight">{loading ? '-' : value}</p>
+      </div>
+    </div>
+  );
 
-  const getStats = () => {
-    if (isAdmin) {
-      return [
-        { label: 'Total Users', value: adminStats.totalUsers.toString(), icon: '👥', change: 'Registered users', path: '/admin/users?tab=users' },
-        { label: 'Pending Requests', value: adminStats.pendingRequests.toString(), icon: '⏳', change: 'Awaiting approval', path: '/admin/users?tab=requests' },
-        { label: 'System Logs', value: adminStats.totalLogs.toString(), icon: '📝', change: 'Activity logs', path: '#system-logs' },
-      ];
-    }
-    return [
-      { label: 'Assigned Tasks', value: '5', icon: '⏱️', change: '2 due today' },
-      { label: 'Projects', value: '3', icon: '📁', change: 'Active membership' },
-      { label: 'Notifications', value: '4', icon: '🔔', change: 'Unread alerts' },
-    ];
-  };
-
-  const handleStatClick = (stat) => {
-    if (!stat.path) return;
-    if (stat.path.startsWith('#')) {
-      const element = document.getElementById(stat.path.substring(1));
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      }
-    } else {
-      navigate(stat.path);
-    }
-  };
-
-  const getActionBadgeColor = (action) => {
-    const act = (action || '').toUpperCase();
-    if (act.includes('CREATE') || act.includes('REGISTER')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    if (act.includes('DEACTIVATE') || act.includes('REJECT') || act.includes('DELETE')) return 'bg-rose-50 text-rose-700 border-rose-200';
-    if (act.includes('UPDATE') || act.includes('RESET') || act.includes('CHANGE')) return 'bg-amber-50 text-amber-700 border-amber-200';
-    if (act.includes('APPROVE')) return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-    return 'bg-gray-50 text-gray-700 border-gray-200';
-  };
-
-  return (
-    <DashboardLayout>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6">
-        
-        {/* Welcome Header Banner */}
-        <section className="bg-gradient-to-r from-indigo-900 to-indigo-800 rounded-2xl p-6 sm:p-8 text-white relative overflow-hidden shadow-md animate-fadeUp">
-          <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20" viewBox="0 0 320 120" fill="none" preserveAspectRatio="none">
-            <circle cx="280" cy="60" r="100" stroke="#fff" strokeWidth="1" />
-            <circle cx="280" cy="60" r="70" stroke="#fff" strokeWidth="1" />
-            <circle cx="280" cy="60" r="40" stroke="#fff" strokeWidth="1" />
-          </svg>
- 
-          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+  // ─── ADMIN DASHBOARD RENDER ──────────────────────────────────────────────
+  if (isAdmin) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-7xl mx-auto space-y-8 animate-fadeUp">
+          
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <div className="flex items-center gap-3 mb-2.5">
-                <span className="text-[12px] font-bold uppercase tracking-wider bg-indigo-500/30 px-3 py-1 rounded-full border border-indigo-400/30">
-                  Dashboard
-                </span>
-                <span className={`text-[11px] font-semibold tracking-wide border px-2.5 py-0.5 rounded-full ${getRoleBadgeColor()}`}>
-                  {user?.role}
-                </span>
-              </div>
-              <h1 className="text-[28px] font-bold tracking-tight mb-1.5">
-                Welcome back, {user?.name}!
-              </h1>
-              <p className="text-[14px] text-indigo-200/80 font-medium max-w-xl">
-                Ready to manage your workspace? Here is a quick snapshot of what is happening across your projects today.
-              </p>
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">System Administration</h1>
+              <p className="text-sm text-gray-500 mt-1">Overview of system health, users, and workspaces.</p>
+            </div>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => navigate('/admin/users')}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
+              >
+                Manage Users
+              </button>
+            </div>
+          </div>
+
+          {/* Admin Cards Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <MetricCard 
+              title="Total System Users" 
+              value={adminMetrics.totalUsers}
+              color="bg-indigo-50 text-indigo-600"
+              icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>}
+            />
+            <MetricCard 
+              title="Active Accounts" 
+              value={adminMetrics.activeUsers}
+              color="bg-emerald-50 text-emerald-600"
+              icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+            />
+            <MetricCard 
+              title="Total Workspaces" 
+              value={adminMetrics.totalProjects}
+              color="bg-blue-50 text-blue-600"
+              icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>}
+            />
+          </div>
+
+          {/* Recent Registrations */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-gray-900">Recently Added Users</h2>
+              <button onClick={() => navigate('/admin/users')} className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">View All Users</button>
             </div>
             
-            <div className="flex flex-wrap gap-3 flex-shrink-0">
-              {isAdmin ? (
-                <button
-                  onClick={() => navigate('/admin/users')}
-                  className="px-4 py-2.5 bg-white text-indigo-950 font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-transform duration-100 hover:scale-[1.02]"
-                >
-                  👥 Manage Users
-                </button>
-              ) : (
-                <>
-                  {user?.role !== 'COLLABORATOR' && (
-                    <button
-                      onClick={() => navigate('/tasks/create')}
-                      className="px-4 py-2.5 bg-white text-indigo-950 font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-transform duration-100 hover:scale-[1.02]"
-                    >
-                      🆕 New Task
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </section>
- 
-        {/* Stats Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {getStats().map((stat, i) => (
-            <div
-              key={stat.label}
-              onClick={() => handleStatClick(stat)}
-              className={`bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex items-center justify-between transition-all duration-200 hover:-translate-y-1 hover:shadow-md animate-fadeUp ${stat.path ? 'cursor-pointer hover:border-indigo-300' : ''}`}
-              style={{ animationDelay: `${0.05 * (i + 1)}s` }}
-            >
-              <div>
-                <span className="text-gray-400 font-semibold text-[13px] tracking-wide uppercase">{stat.label}</span>
-                <p className="text-[28px] font-extrabold text-indigo-950 tracking-tight mt-1 mb-0.5">{stat.value}</p>
-                <span className="text-[11.5px] text-emerald-600 font-semibold">{stat.change}</span>
-              </div>
-              <div className="w-12 h-12 bg-indigo-50 text-2xl flex items-center justify-center rounded-xl">
-                {stat.icon}
-              </div>
-            </div>
-          ))}
-        </section>
- 
-        {/* Profile Card & Details */}
-        <section className="bg-white p-6 sm:p-8 rounded-2xl border border-indigo-100 shadow-sm animate-fadeUp" style={{ animationDelay: '0.2s' }}>
-          <h2 className="text-[20px] font-bold text-indigo-950 tracking-tight mb-5 flex items-center gap-2">
-            🔐 Account & Security Information
-          </h2>
-          
-          <div className="w-full">
-            <div className="bg-indigo-50/30 border border-indigo-100/50 p-5 rounded-xl flex flex-col gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Full Name</span>
-                  <span className="text-[14.5px] font-bold text-indigo-950">{user?.name}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Email Address</span>
-                  <span className="text-[14.5px] font-bold text-indigo-950">{user?.email}</span>
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Access Role</span>
-                  <span className="text-[14.5px] font-bold text-indigo-950">{user?.role}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
- 
-        {/* System Activity Logs (Admin Only) */}
-        {isAdmin && (
-          <section id="system-logs" className="bg-white p-6 sm:p-8 rounded-2xl border border-indigo-100 shadow-sm animate-fadeUp" style={{ animationDelay: '0.3s' }}>
-            <div className="flex justify-between items-center mb-5">
-              <h2 className="text-[20px] font-bold text-indigo-950 tracking-tight flex items-center gap-2">
-                📋 System Activity Logs
-              </h2>
-              <span className="text-[12px] text-gray-400 font-semibold uppercase tracking-wider">
-                Last 10 events
-              </span>
-            </div>
- 
             {loading ? (
-              <div className="text-center py-8 text-gray-400 text-[14px]">Loading activity logs...</div>
-            ) : error ? (
-              <div className="bg-rose-50 border border-rose-100 text-rose-700 text-[13.5px] p-4 rounded-xl font-medium">
-                {error}
-              </div>
-            ) : logs.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 text-[14px]">No system logs recorded yet.</div>
+              <div className="text-sm text-gray-400 py-4">Loading...</div>
+            ) : adminMetrics.recentUsers.length === 0 ? (
+              <div className="text-sm text-gray-400 py-4">No users found.</div>
             ) : (
-              <div className="overflow-hidden border border-gray-100 rounded-xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50/50 border-b border-gray-100 text-[11px] uppercase tracking-wider text-gray-400 font-bold">
-                        <th className="px-5 py-3">Timestamp</th>
-                        <th className="px-5 py-3">Action</th>
-                        <th className="px-5 py-3">Message</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {logs.map((log) => (
-                        <tr key={log.id} className="hover:bg-gray-50/30 transition-colors">
-                          <td className="px-5 py-3.5 text-gray-500 text-[12.5px] font-medium whitespace-nowrap">
-                            {new Date(log.createdAt).toLocaleString(undefined, {
-                              dateStyle: 'short',
-                              timeStyle: 'medium',
-                            })}
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${getActionBadgeColor(log.action)}`}>
-                              {log.action}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3.5 text-indigo-950 text-[13px] font-medium leading-relaxed">
-                            {log.message}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="space-y-4">
+                {adminMetrics.recentUsers.map((u, i) => (
+                  <div key={u.id || i} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors cursor-pointer group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-700">
+                        {u.name?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{u.name}</h4>
+                        <p className="text-xs text-gray-500 mt-0.5">{u.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${
+                        u.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100'
+                      }`}>
+                        {u.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                      <span className="text-xs font-semibold px-2.5 py-1 bg-gray-50 text-gray-600 rounded-lg border border-gray-200">
+                        {u.role}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-          </section>
-        )}
+          </div>
+          
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // ─── REGULAR DASHBOARD RENDER ────────────────────────────────────────────
+  return (
+    <DashboardLayout>
+      <div className="max-w-7xl mx-auto space-y-8 animate-fadeUp">
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Overview</h1>
+            <p className="text-sm text-gray-500 mt-1">Here's what's happening in your workspace today.</p>
+          </div>
+          <div className="flex gap-3">
+            {user?.role !== 'COLLABORATOR' && (
+              <button 
+                onClick={() => navigate('/tasks/create')}
+                className="bg-[#2563EB] hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
+              >
+                Create Task
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 1. Top Cards Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <MetricCard 
+            title="Total Projects" 
+            value={metrics.totalProjects}
+            trend="12%"
+            color="bg-blue-50 text-blue-600"
+            icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>}
+          />
+          <MetricCard 
+            title="Active Tasks" 
+            value={metrics.activeTasks}
+            trend="8%"
+            color="bg-indigo-50 text-indigo-600"
+            icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 002 2m-6 9l2 2 4-4" /></svg>}
+          />
+          <MetricCard 
+            title="Completed Tasks" 
+            value={metrics.completedTasks}
+            trend="24%"
+            color="bg-green-50 text-green-600"
+            icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          />
+          <MetricCard 
+            title="Overdue Tasks" 
+            value={metrics.overdueTasks}
+            color="bg-orange-50 text-orange-600"
+            icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+          />
+        </div>
+
+        {/* 2. Middle Section: Charts & Productivity */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Team Productivity Overview (Mockup for design purposes) */}
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-gray-900">Team Productivity Overview</h2>
+              <select className="bg-gray-50 border border-gray-200 text-sm rounded-lg px-3 py-1.5 outline-none font-medium text-gray-600 cursor-pointer">
+                <option>This Week</option>
+                <option>This Month</option>
+              </select>
+            </div>
+            
+            <div className="h-64 flex items-end gap-2 sm:gap-4 pt-4 border-b border-gray-100 pb-2 relative">
+              {/* Mock Bar Chart */}
+              <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-400 pb-2">
+                <span>100</span><span>75</span><span>50</span><span>25</span><span>0</span>
+              </div>
+              <div className="ml-8 flex-1 flex items-end justify-between gap-2 h-full">
+                {[45, 60, 35, 80, 55, 90, 70].map((h, i) => (
+                  <div key={i} className="w-full flex justify-center group">
+                    <div 
+                      className="w-full max-w-[40px] bg-blue-100 rounded-t-md relative overflow-hidden transition-all group-hover:bg-blue-200" 
+                      style={{ height: `${h}%` }}
+                    >
+                      <div className="absolute bottom-0 left-0 right-0 bg-[#2563EB]" style={{ height: `${h * 0.7}%` }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="ml-8 mt-4 flex justify-between text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+          </div>
+
+          {/* Task Completion Analytics (Mockup) */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col">
+            <h2 className="text-lg font-bold text-gray-900 mb-6">Task Completion</h2>
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="relative w-48 h-48">
+                {/* SVG Donut Chart Mockup */}
+                <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                  <path
+                    className="text-gray-100"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="text-[#2563EB]"
+                    strokeDasharray="65, 100"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    className="text-[#6366F1]"
+                    strokeDasharray="20, 100"
+                    strokeDashoffset="-65"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-3xl font-extrabold text-gray-900 tracking-tighter">85%</span>
+                  <span className="text-xs text-gray-500 font-medium">Completed</span>
+                </div>
+              </div>
+              <div className="mt-8 w-full space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#2563EB]"></div><span className="text-gray-600 font-medium">Done</span></div>
+                  <span className="font-bold text-gray-900">65%</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#6366F1]"></div><span className="text-gray-600 font-medium">In Progress</span></div>
+                  <span className="font-bold text-gray-900">20%</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-gray-200"></div><span className="text-gray-600 font-medium">Todo</span></div>
+                  <span className="font-bold text-gray-900">15%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Bottom Section: Activities & Deadlines */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          {/* Recent Activities */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-gray-900">Recent Activities</h2>
+              <button className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">View All</button>
+            </div>
+            <div className="space-y-6">
+              {[
+                { user: 'Alex', action: 'completed task', target: 'Design System Update', time: '2 hours ago', color: 'bg-green-500' },
+                { user: 'Sarah', action: 'commented on', target: 'API Integration', time: '4 hours ago', color: 'bg-blue-500' },
+                { user: 'You', action: 'created project', target: 'Q3 Marketing Site', time: 'Yesterday', color: 'bg-purple-500' },
+                { user: 'Mike', action: 'moved task to Review', target: 'Mobile Navigation', time: 'Yesterday', color: 'bg-orange-500' }
+              ].map((activity, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="relative">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600 z-10 relative border-2 border-white">
+                      {activity.user.charAt(0)}
+                    </div>
+                    {i !== 3 && <div className="absolute top-8 bottom-[-24px] left-1/2 w-px bg-gray-100 -translate-x-1/2"></div>}
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-900">
+                      <span className="font-bold">{activity.user}</span> <span className="text-gray-500">{activity.action}</span> <span className="font-bold">{activity.target}</span>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Upcoming Deadlines */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-gray-900">Upcoming Deadlines</h2>
+              <button onClick={() => navigate('/calendar')} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">View Calendar</button>
+            </div>
+            <div className="space-y-4">
+              {[
+                { title: 'Finalize Q3 Budget', project: 'Finance', date: 'Tomorrow', color: 'bg-red-500' },
+                { title: 'Launch Marketing Campaign', project: 'Marketing', date: 'Oct 24', color: 'bg-orange-500' },
+                { title: 'User Testing Interviews', project: 'Product', date: 'Oct 26', color: 'bg-blue-500' },
+                { title: 'Security Audit Report', project: 'Engineering', date: 'Oct 28', color: 'bg-purple-500' }
+              ].map((task, i) => (
+                <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors cursor-pointer group">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-2 h-2 rounded-full ${task.color}`}></div>
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{task.title}</h4>
+                      <p className="text-xs text-gray-500 mt-0.5">{task.project}</p>
+                    </div>
+                  </div>
+                  <div className="text-xs font-semibold px-2.5 py-1 bg-gray-50 text-gray-600 rounded-lg border border-gray-200">
+                    {task.date}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
 
       </div>
     </DashboardLayout>
