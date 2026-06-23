@@ -3,6 +3,8 @@ import { authenticateUser } from '../middlewares/auth.middleware';
 import { checkRole } from '../middlewares/role.middleware';
 import { 
   deactivateUser, 
+  activateUser,
+  deleteUser,
   updateUserRole, 
   getUsersList, 
   getUserById, 
@@ -27,6 +29,12 @@ router.get('/:id', getUserById as any);
 
 // Route: PATCH /api/admin/users/:id/deactivate
 router.patch('/:id/deactivate', deactivateUser as any);
+
+// Route: PATCH /api/admin/users/:id/activate
+router.patch('/:id/activate', activateUser as any);
+
+// Route: DELETE /api/admin/users/:id
+router.delete('/:id', deleteUser as any);
 
 // Route: PATCH /api/admin/users/:id/role
 router.patch('/:id/role', updateUserRole as any);

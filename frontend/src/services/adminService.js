@@ -50,6 +50,22 @@ export const adminService = {
   },
 
   /**
+   * Activate a user
+   */
+  activateUser: async (id) => {
+    const response = await api.patch(`/admin/users/${id}/activate`);
+    return response.data;
+  },
+
+  /**
+   * Delete a user permanently
+   */
+  deleteUser: async (id) => {
+    const response = await api.delete(`/admin/users/${id}`);
+    return response.data;
+  },
+
+  /**
    * Get all access requests
    */
   getRegistrationRequests: async () => {

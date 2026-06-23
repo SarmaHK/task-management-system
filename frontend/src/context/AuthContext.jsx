@@ -38,7 +38,7 @@ export function AuthProvider({ children }) {
           id: u.id,
           name: u.name,
           email: u.email,
-          firstLogin: u.firstLogin,
+          mustChangePassword: u.mustChangePassword,
           role: typeof u.role === 'object' ? u.role.name : u.role,
         });
       } else {
@@ -180,8 +180,8 @@ export function AuthProvider({ children }) {
         throw new Error(resData.message || 'Password update failed');
       }
 
-      // Update local user state: user is no longer firstLogin
-      setUser(prev => prev ? { ...prev, firstLogin: false } : null);
+      // Update local user state: user is no longer required to change password
+      setUser(prev => prev ? { ...prev, mustChangePassword: false } : null);
       return resData;
     } catch (error) {
       throw error;

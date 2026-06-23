@@ -15,6 +15,7 @@ export interface AuthUserResponse {
   name: string;
   email: string;
   role: string;
+  mustChangePassword?: boolean;
 }
 
 export interface AuthResponse {

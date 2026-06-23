@@ -22,7 +22,7 @@ export default function ProtectedRoute({ allowedRoles }) {
   }
 
   // Force password reset if it's the user's first login
-  if (user.firstLogin) {
+  if (user.mustChangePassword) {
     return <Navigate to="/setup-password" replace />;
   }
 

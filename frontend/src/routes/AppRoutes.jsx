@@ -36,7 +36,7 @@ function RequireAuth({ children, allowedRoles }) {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (user.firstLogin) return <Navigate to="/setup-password" replace />;
+  if (user.mustChangePassword) return <Navigate to="/setup-password" replace />;
 
   if (allowedRoles && allowedRoles.length > 0) {
     const userRole = (user.role || '').toUpperCase();

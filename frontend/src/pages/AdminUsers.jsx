@@ -129,6 +129,34 @@ export default function AdminUsers() {
     }
   };
 
+  const handleActivate = async (userId) => {
+    if (!window.confirm('Are you sure you want to activate this user?')) return;
+
+    try {
+      const response = await adminService.activateUser(userId);
+      if (response.success) {
+        setUsers(users.map(u => u.id === userId ? { ...u, isActive: true } : u));
+      }
+    } catch (error) {
+      console.error('Error activating user:', error);
+      alert(error.response?.data?.message || 'Failed to activate user.');
+    }
+  };
+
+  const handleDelete = async (userId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) return;
+
+    try {
+      const response = await adminService.deleteUser(userId);
+      if (response.success) {
+        setUsers(users.filter(u => u.id !== userId));
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert(error.response?.data?.message || 'Failed to delete user.');
+    }
+  };
+
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -350,7 +378,20 @@ export default function AdminUsers() {
                               Deactivate
                             </button>
                           ) : (
-                            <span className="text-[13px] font-bold text-gray-400">Deactivated</span>
+                            <div className="flex items-center justify-end gap-3">
+                              <button 
+                                onClick={() => handleActivate(u.id)}
+                                className="text-[13px] font-bold text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer"
+                              >
+                                Activate
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(u.id)}
+                                className="text-[13px] font-bold text-gray-500 hover:text-rose-600 transition-colors cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>

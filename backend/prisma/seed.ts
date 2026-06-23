@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { PrismaClient, Role, UserStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
@@ -23,7 +24,7 @@ async function main() {
       passwordHash: adminPassword,
       role: Role.ADMIN,
       status: UserStatus.ACTIVE,
-      firstLogin: false,
+      mustChangePassword: false,
     },
   });
 
@@ -40,7 +41,7 @@ async function main() {
       passwordHash: pmPassword,
       role: Role.PROJECT_MANAGER,
       status: UserStatus.ACTIVE,
-      firstLogin: false,
+      mustChangePassword: false,
     },
   });
 
@@ -57,7 +58,7 @@ async function main() {
       passwordHash: collabPassword,
       role: Role.COLLABORATOR,
       status: UserStatus.ACTIVE,
-      firstLogin: false,
+      mustChangePassword: false,
     },
   });
 

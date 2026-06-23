@@ -11,6 +11,7 @@ export interface AuthenticatedRequest extends Request {
     id: number;
     email: string;
     role: Role;
+    mustChangePassword?: boolean;
   };
 }
 
@@ -49,6 +50,7 @@ export const authenticateUser = async (
         email: true,
         role: true,
         status: true,
+        mustChangePassword: true,
       },
     });
 
@@ -65,6 +67,7 @@ export const authenticateUser = async (
       id: user.id,
       email: user.email,
       role: user.role,
+      mustChangePassword: user.mustChangePassword,
     };
 
     next();
