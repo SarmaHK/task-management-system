@@ -17,6 +17,10 @@ import Dashboard from '../pages/Dashboard';
 import TaskList from '../pages/tasks/TaskList';
 import CreateTask from '../pages/tasks/CreateTask';
 import EditTask from '../pages/tasks/EditTask';
+import KanbanBoard from '../pages/tasks/KanbanBoard';
+import TaskDetails from '../pages/tasks/TaskDetails';
+import Projects from '../pages/projects/Projects';
+import ProjectDetails from '../pages/projects/ProjectDetails';
 
 // ── Auth guard wrapper ────────────────────────────────────────────────────
 function RequireAuth({ children, allowedRoles }) {
@@ -92,10 +96,26 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/tasks/kanban"
+        element={
+          <RequireAuth allowedRoles={ALL_ROLES}>
+            <KanbanBoard />
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/tasks/edit/:id"
         element={
           <RequireAuth allowedRoles={ALL_ROLES}>
             <EditTask />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/tasks/:id"
+        element={
+          <RequireAuth allowedRoles={ALL_ROLES}>
+            <TaskDetails />
           </RequireAuth>
         }
       />
@@ -108,6 +128,24 @@ export default function AppRoutes() {
             <AdminUsers />
           </RequireAuth>
         } 
+      />
+
+      {/* Project routes */}
+      <Route
+        path="/projects"
+        element={
+          <RequireAuth allowedRoles={ALL_ROLES}>
+            <Projects />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/projects/:id"
+        element={
+          <RequireAuth allowedRoles={ALL_ROLES}>
+            <ProjectDetails />
+          </RequireAuth>
+        }
       />
 
       {/* Catch-all */}

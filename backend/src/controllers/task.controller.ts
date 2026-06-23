@@ -30,15 +30,16 @@ export class TaskController {
     next: NextFunction
   ): Promise<void> {
     try {
-      const { title, description, projectId, priority, dueDate } = req.body;
+      const { title, description, projectId, priority, dueDate, assigneeIds } = req.body;
 
       const task = await TaskService.createTask({
         title,
         description,
-        projectId,
+        projectId: parseInt(projectId),
         priority,
         dueDate,
         creatorId: req.user!.id,
+        assigneeIds: assigneeIds ? assigneeIds.map((id: any) => parseInt(id)) : undefined,
       });
 
       res.status(201).json({
@@ -80,7 +81,7 @@ export class TaskController {
   ): Promise<void> {
     try {
       const taskId = parseInt(req.params.id);
-      const { title, description, priority, dueDate } = req.body;
+      const { title, description, priority, dueDate, assigneeIds } = req.body;
 
       const task = await TaskService.updateTask({
         taskId,
@@ -90,6 +91,7 @@ export class TaskController {
         dueDate,
         userId: req.user!.id,
         userRole: req.user!.role.name,
+        assigneeIds: assigneeIds ? assigneeIds.map((id: any) => parseInt(id)) : undefined,
       });
 
       res.status(200).json({

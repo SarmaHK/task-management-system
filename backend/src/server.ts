@@ -1,13 +1,20 @@
+import http from 'http';
 import app from './app';
 import { config } from './config/env';
 import { connectDatabase } from './config/database';
+import { SocketService } from './services/socket.service';
 
 const startServer = async (): Promise<void> => {
   try {
-    // Await future database connection
+    // Await database connection
     await connectDatabase();
 
-    app.listen(config.PORT, () => {
+    const server = http.createServer(app);
+
+    // Initialize Socket.io
+    SocketService.init(server);
+
+    server.listen(config.PORT, () => {
       console.log(`Server is running in ${config.NODE_ENV} mode on port ${config.PORT}`);
     });
   } catch (error) {
@@ -17,3 +24,4 @@ const startServer = async (): Promise<void> => {
 };
 
 startServer();
+

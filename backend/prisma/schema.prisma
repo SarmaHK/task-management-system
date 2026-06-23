@@ -93,7 +93,9 @@ model Project {
   ownerId     Int
   owner       User          @relation("OwnedProjects", fields: [ownerId], references: [id])
   status      ProjectStatus @default(ACTIVE)
+  startDate   DateTime?
   endDate     DateTime?
+  isDeleted   Boolean       @default(false)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -172,6 +174,7 @@ model Attachment {
   id        Int      @id @default(autoincrement())
   filename  String
   fileUrl   String
+  mimeType  String?
   taskId    Int
   task      Task     @relation(fields: [taskId], references: [id])
   userId    Int

@@ -2,6 +2,7 @@
  * TaskForm.jsx — Reusable form used by both CreateTask and EditTask pages
  */
 import { useState, useEffect } from 'react';
+import projectService from '../../services/projectService';
 
 const STATUSES = [
   { value: 'TODO', label: '⏳ To Do' },
@@ -22,7 +23,7 @@ const PRIORITIES = [
  * @param {boolean}  props.isSubmitting   — Shows a loading spinner on the submit button
  * @param {string}   props.submitLabel    — Button text
  * @param {boolean}  props.showStatus     — Show status dropdown (edit mode only)
- * @param {boolean}  props.showProjectId  — Show project ID field (create mode only)
+ * @param {boolean}  props.showProjectId  — Show project selector (create mode only)
  */
 export default function TaskForm({
   initialValues = {},
@@ -39,16 +40,59 @@ export default function TaskForm({
     status: 'TODO',
     dueDate: '',
     projectId: '',
+    assigneeIds: [],
     ...initialValues,
   });
 
+  const [projects, setProjects] = useState([]);
+  const [projectMembers, setProjectMembers] = useState([]);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
-  // Sync initial values when editing (data arrives async)
+  // 1. Fetch all projects for the dropdown
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const res = await projectService.getAllProjects();
+        if (res.success) {
+          setProjects(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching projects for form:', err);
+      }
+    };
+    fetchProjects();
+  }, []);
+
+  // 2. Fetch project members when projectId changes to populate assignee options
+  useEffect(() => {
+    const fetchMembers = async () => {
+      const pid = parseInt(form.projectId);
+      if (!pid || isNaN(pid)) {
+        setProjectMembers([]);
+        return;
+      }
+      try {
+        const res = await projectService.getProjectById(pid);
+        if (res.success) {
+          setProjectMembers(res.data.project.members || []);
+        }
+      } catch (err) {
+        console.error('Error fetching project members for task form:', err);
+      }
+    };
+    fetchMembers();
+  }, [form.projectId]);
+
+  // Sync initial values when editing
   useEffect(() => {
     if (initialValues && Object.keys(initialValues).length > 0) {
-      setForm((prev) => ({ ...prev, ...initialValues }));
+      const formattedInitial = { ...initialValues };
+      if (initialValues.assignees) {
+        // Map TaskAssignment array to simple user ID array
+        formattedInitial.assigneeIds = initialValues.assignees.map((a) => a.userId);
+      }
+      setForm((prev) => ({ ...prev, ...formattedInitial }));
     }
   }, [JSON.stringify(initialValues)]);
 
@@ -64,12 +108,8 @@ export default function TaskForm({
     if (values.description && values.description.length > 1000) {
       errs.description = 'Description must be under 1000 characters.';
     }
-    if (showProjectId) {
-      if (!values.projectId) {
-        errs.projectId = 'Project ID is required.';
-      } else if (isNaN(parseInt(values.projectId)) || parseInt(values.projectId) < 1) {
-        errs.projectId = 'Please enter a valid numeric Project ID.';
-      }
+    if (showProjectId && !values.projectId) {
+      errs.projectId = 'Project selection is required.';
     }
     return errs;
   };
@@ -80,6 +120,16 @@ export default function TaskForm({
     if (touched[name]) {
       setErrors((prev) => ({ ...prev, ...validate({ ...form, [name]: value }) }));
     }
+  };
+
+  const handleAssigneeChange = (userId, checked) => {
+    setForm((prev) => {
+      const current = prev.assigneeIds || [];
+      const updated = checked
+        ? [...current, userId]
+        : current.filter((id) => id !== userId);
+      return { ...prev, assigneeIds: updated };
+    });
   };
 
   const handleBlur = (e) => {
@@ -103,6 +153,7 @@ export default function TaskForm({
       description: form.description?.trim() || undefined,
       priority: form.priority,
       dueDate: form.dueDate || undefined,
+      assigneeIds: form.assigneeIds || [],
       ...(showStatus ? { status: form.status } : {}),
       ...(showProjectId ? { projectId: parseInt(form.projectId) } : {}),
     };
@@ -116,6 +167,32 @@ export default function TaskForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+      
+      {/* Project Selector — only in create mode */}
+      {showProjectId && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[13px] font-bold text-gray-700 flex items-center gap-1">
+            Project Workspace <span className="text-red-500">*</span>
+          </label>
+          <select
+            id="task-project-id"
+            name="projectId"
+            value={form.projectId}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            className={`${inputBase} ${touched.projectId && errors.projectId ? inputError : inputNormal} cursor-pointer`}
+          >
+            <option value="">-- Select Project Workspace --</option>
+            {projects.map((proj) => (
+              <option key={proj.id} value={proj.id}>{proj.name}</option>
+            ))}
+          </select>
+          {touched.projectId && errors.projectId && (
+            <p className="text-[12px] text-red-500 font-medium">{errors.projectId}</p>
+          )}
+        </div>
+      )}
+
       {/* Title */}
       <div className="flex flex-col gap-1.5">
         <label className="text-[13px] font-bold text-gray-700 flex items-center gap-1">
@@ -134,9 +211,6 @@ export default function TaskForm({
         />
         {touched.title && errors.title && (
           <p className="text-[12px] text-red-500 font-medium flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
             {errors.title}
           </p>
         )}
@@ -213,27 +287,32 @@ export default function TaskForm({
         </div>
       </div>
 
-      {/* Project ID — only in create mode */}
-      {showProjectId && (
+      {/* Task Assignees checklist - limited strictly to project members */}
+      {form.projectId && (
         <div className="flex flex-col gap-1.5">
-          <label className="text-[13px] font-bold text-gray-700 flex items-center gap-1">
-            Project ID <span className="text-red-500">*</span>
+          <label className="text-[13px] font-bold text-indigo-950 block mb-1">
+            Task Assignees (Project Members Only)
           </label>
-          <input
-            id="task-project-id"
-            name="projectId"
-            type="number"
-            min="1"
-            value={form.projectId}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="Enter the numeric Project ID (e.g. 1)"
-            className={`${inputBase} ${touched.projectId && errors.projectId ? inputError : inputNormal}`}
-          />
-          {touched.projectId && errors.projectId && (
-            <p className="text-[12px] text-red-500 font-medium">{errors.projectId}</p>
+          {projectMembers.length === 0 ? (
+            <p className="text-[12px] text-gray-400 italic">No members linked to this project yet.</p>
+          ) : (
+            <div className="border border-gray-150 rounded-xl p-3 flex flex-wrap gap-3 bg-gray-50/50 max-h-32 overflow-y-auto">
+              {projectMembers.map((m) => (
+                <label 
+                  key={m.userId}
+                  className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-100 text-[12.5px] font-bold text-indigo-950 shadow-sm cursor-pointer select-none"
+                >
+                  <input
+                    type="checkbox"
+                    checked={(form.assigneeIds || []).includes(m.userId)}
+                    onChange={(e) => handleAssigneeChange(m.userId, e.target.checked)}
+                    className="w-3.5 h-3.5 accent-indigo-600 rounded cursor-pointer"
+                  />
+                  {m.user?.name}
+                </label>
+              ))}
+            </div>
           )}
-          <p className="text-[11px] text-indigo-500/70 font-medium">Ask your Project Manager for the Project ID.</p>
         </div>
       )}
 
