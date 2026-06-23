@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { TaskService } from '../services/task.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
+import { io } from '../server'; // 🟢 1. Import your active WebSockets server
 
 export class TaskController {
 
@@ -40,6 +41,9 @@ export class TaskController {
         dueDate,
         creatorId: req.user!.id,
       });
+
+      // 🟢 2. Broadcast that a new task was just created!
+      io.emit('taskCreated', task);
 
       res.status(201).json({
         success: true,
@@ -92,6 +96,9 @@ export class TaskController {
         userRole: req.user!.role.name,
       });
 
+      // 🟢 3. Broadcast that this entire task was updated
+      io.emit('taskUpdated', task);
+
       res.status(200).json({
         success: true,
         message: 'Task updated successfully',
@@ -112,6 +119,9 @@ export class TaskController {
       const taskId = parseInt(req.params.id);
 
       await TaskService.deleteTask(taskId, req.user!.id, req.user!.role.name);
+
+      // 🟢 4. Broadcast the ID of the deleted task so the frontend can remove it from the screen
+      io.emit('taskDeleted', { taskId });
 
       res.status(200).json({
         success: true,
@@ -139,6 +149,9 @@ export class TaskController {
         userRole: req.user!.role.name,
       });
 
+      // 🟢 5. Broadcast the updated task (useful for moving cards on a Kanban board!)
+      io.emit('taskUpdated', task);
+
       res.status(200).json({
         success: true,
         message: 'Task status updated successfully',
@@ -165,6 +178,9 @@ export class TaskController {
         userId: req.user!.id,
         userRole: req.user!.role.name,
       });
+
+      // 🟢 6. Broadcast the updated task
+      io.emit('taskUpdated', task);
 
       res.status(200).json({
         success: true,

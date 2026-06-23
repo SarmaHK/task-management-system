@@ -1,11 +1,18 @@
-import userRoutes from './routes/user.routes';
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+
+// Existing Route Imports
 import healthRoutes from './routes/health.routes';
 import authRoutes from './routes/auth.routes';
 import taskRoutes from './routes/task.routes';
+import userRoutes from './routes/user.routes';
+
+// 🟢 1. Import the two new route files you just created
+import commentRoutes from './routes/comment.routes';
+import notificationRoutes from './routes/notification.routes';
+
 import { errorHandler } from './middlewares/error.middleware';
 import { notFoundHandler } from './middlewares/notFound.middleware';
 import swaggerUi from 'swagger-ui-express';
@@ -32,6 +39,10 @@ app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/admin/users', userRoutes);
+
+// 🟢 2. Mount the new routes to the /api path
+app.use('/api', commentRoutes);
+app.use('/api', notificationRoutes);
 
 // Handle 404
 app.use(notFoundHandler);
