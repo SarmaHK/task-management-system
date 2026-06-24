@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import projectService from '../../services/projectService';
-import adminService from '../../services/adminService';
 import { useAuth } from '../../context/AuthContext';
+import AttachmentManager from '../../components/attachments/AttachmentManager';
 
 export default function ProjectDetails() {
   const { id } = useParams();
@@ -77,24 +77,20 @@ export default function ProjectDetails() {
     }
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="text-center py-20 text-gray-400 font-medium text-[15px]">Loading workspace details...</div>
-      </DashboardLayout>
-    );
-  }
+  const handleUpdateDeadline = async (e) => {
+    const newDeadline = e.target.value;
+    try {
+      const res = await projectService.updateProject(parseInt(id), { endDate: newDeadline || null });
+      if (res.success) {
+        fetchProjectData();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update project deadline');
+    }
+  };
 
-  if (!project) {
-    return (
-      <DashboardLayout>
-        <div className="text-center py-20 text-red-500 font-bold text-[15px]">Project not found.</div>
-      </DashboardLayout>
-    );
-  }
-
-  const isProjectOwner = user?.role === 'PROJECT_MANAGER' && project.ownerId === user?.id;
-  const canCreateTask = user?.role === 'PROJECT_MANAGER' && project.members.some(m => m.userId === user?.id);
+  const isProjectOwner = user?.role === 'PROJECT_MANAGER' && project?.owner?.id === user?.id;
+  const canCreateTask = user?.role === 'PROJECT_MANAGER' && project?.members?.some(m => m.userId === user?.id);
 
   useEffect(() => {
     if (!isProjectOwner) return;
@@ -117,6 +113,22 @@ export default function ProjectDetails() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, isProjectOwner]);
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-20 text-gray-400 font-medium text-[15px]">Loading workspace details...</div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!project) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-20 text-red-500 font-bold text-[15px]">Project not found.</div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-6 animate-fadeUp">
@@ -132,6 +144,21 @@ export default function ProjectDetails() {
             </button>
             <h1 className="text-[26px] font-extrabold text-indigo-950 tracking-tight">{project.name}</h1>
             <p className="text-[14px] text-gray-500 font-medium max-w-xl">{project.description || 'No description.'}</p>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-[12px] font-bold text-gray-400 uppercase tracking-wider">Deadline:</span>
+              {isProjectOwner ? (
+                <input 
+                  type="date"
+                  value={project.endDate ? project.endDate.split('T')[0] : ''}
+                  onChange={handleUpdateDeadline}
+                  className="border border-gray-200 rounded-md px-2 py-1 text-[12px] text-indigo-900 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                />
+              ) : (
+                <span className="text-[13px] font-semibold text-indigo-900">
+                  {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'No Deadline'}
+                </span>
+              )}
+            </div>
           </div>
           
           <div className="flex gap-3">
@@ -179,9 +206,12 @@ export default function ProjectDetails() {
         {/* Project Layout Body */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start mt-2">
           
-          {/* Main Tasks List */}
-          <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between">
+          {/* Left Column: Tasks and Attachments */}
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            
+            {/* Main Tasks List */}
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-6 py-5 border-b border-gray-50 flex items-center justify-between">
               <h3 className="text-[16px] font-bold text-indigo-950">Workspace Tasks</h3>
               <span className="text-[12px] text-gray-400 font-bold">{tasks.length} total</span>
             </div>
@@ -246,6 +276,12 @@ export default function ProjectDetails() {
               </table>
             </div>
           </div>
+            
+          {/* Project Attachments */}
+          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
+              <AttachmentManager projectId={project.id} />
+            </div>
+          </div>
 
           {/* Members Sidebar Panel */}
           <div className="flex flex-col gap-6">
@@ -262,7 +298,7 @@ export default function ProjectDetails() {
                   <div key={m.id} className="flex justify-between items-center gap-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 text-indigo-700 font-bold text-[12px] flex items-center justify-center flex-shrink-0">
-                        {m.user?.name?.charAt(0).toUpperCase()}
+                        {(m.user?.name?.charAt(0) || 'U').toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <p className="text-[13px] font-bold text-indigo-950 truncate leading-snug">{m.user?.name}</p>
@@ -272,7 +308,7 @@ export default function ProjectDetails() {
                       </div>
                     </div>
 
-                    {isProjectOwner && m.userId !== project.ownerId && (
+                    {isProjectOwner && m.userId !== project.owner?.id && (
                       <button
                         onClick={() => handleRemoveMember(m.id)}
                         className="text-[11px] font-bold text-red-500 hover:text-red-700 p-1 cursor-pointer"

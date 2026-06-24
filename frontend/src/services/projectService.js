@@ -80,6 +80,28 @@ export const projectService = {
     const response = await api.get(`/projects/${id}/tasks`);
     return response.data;
   },
+
+  /**
+   * Get all project attachments
+   */
+  getAttachments: async (id) => {
+    const response = await api.get(`/projects/${id}/attachments`);
+    return response.data;
+  },
+
+  /**
+   * Upload an attachment to a project
+   */
+  uploadAttachment: async (id, fileObject) => {
+    const formData = new FormData();
+    formData.append('file', fileObject);
+    const response = await api.post(`/projects/${id}/attachments`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
 export default projectService;

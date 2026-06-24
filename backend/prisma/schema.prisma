@@ -102,9 +102,10 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  tasks   Task[]
-  members ProjectMember[]
-  messages Message[]
+  tasks      Task[]
+  members    ProjectMember[]
+  messages   Message[]
+  attachments Attachment[]
 
   @@index([ownerId])
   @@map("projects")
@@ -186,13 +187,16 @@ model Attachment {
   filename  String
   fileUrl   String
   mimeType  String?
-  taskId    Int
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    Int?
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  projectId Int?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
 
   @@index([taskId])
+  @@index([projectId])
   @@index([userId])
   @@map("attachments")
 }

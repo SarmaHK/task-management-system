@@ -17,6 +17,12 @@ export default function Dashboard() {
     activeTasks: 0,
     completedTasks: 0,
     overdueTasks: 0,
+    todoTasks: 0,
+    inProgressTasks: 0,
+    totalTasks: 0,
+    recentTasks: [],
+    upcomingDeadlines: [],
+    allTasks: [],
   });
   
   // State for admin metrics
@@ -56,8 +62,8 @@ export default function Dashboard() {
           }
         } else {
           const [tasksRes, projRes] = await Promise.all([
-            taskService.getTasks(),
-            projectService.getProjects(),
+            taskService.getAllTasks(),
+            projectService.getAllProjects(),
           ]);
 
           if (tasksRes.success && projRes.success) {
@@ -66,16 +72,27 @@ export default function Dashboard() {
             
             const activeTasks = tasks.filter(t => t.status !== 'COMPLETED').length;
             const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length;
+            const todoTasks = tasks.filter(t => t.status === 'TODO').length;
+            const inProgressTasks = tasks.filter(t => t.status === 'IN_PROGRESS').length;
             const overdueTasks = tasks.filter(t => {
               if (t.status === 'COMPLETED') return false;
-              return new Date(t.dueDate) < new Date();
+              return t.dueDate && new Date(t.dueDate) < new Date();
             }).length;
+
+            const recentTasks = [...tasks].sort((a,b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 4);
+            const upcomingDeadlines = [...tasks].filter(t => t.status !== 'COMPLETED' && t.dueDate).sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)).slice(0, 4);
 
             setMetrics({
               totalProjects: projects.length,
               activeTasks,
               completedTasks,
-              overdueTasks
+              overdueTasks,
+              todoTasks,
+              inProgressTasks,
+              totalTasks: tasks.length,
+              recentTasks,
+              upcomingDeadlines,
+              allTasks: tasks,
             });
           }
         }
@@ -225,21 +242,18 @@ export default function Dashboard() {
           <MetricCard 
             title="Total Projects" 
             value={metrics.totalProjects}
-            trend="12%"
             color="bg-blue-50 text-blue-600"
             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>}
           />
           <MetricCard 
             title="Active Tasks" 
             value={metrics.activeTasks}
-            trend="8%"
             color="bg-indigo-50 text-indigo-600"
             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002-2h2a2 2 0 002 2m-6 9l2 2 4-4" /></svg>}
           />
           <MetricCard 
             title="Completed Tasks" 
             value={metrics.completedTasks}
-            trend="24%"
             color="bg-green-50 text-green-600"
             icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
           />
@@ -254,90 +268,111 @@ export default function Dashboard() {
         {/* 2. Middle Section: Charts & Productivity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Team Productivity Overview (Mockup for design purposes) */}
+          {/* Recent Task Volume */}
           <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-gray-900">Team Productivity Overview</h2>
-              <select className="bg-gray-50 border border-gray-200 text-sm rounded-lg px-3 py-1.5 outline-none font-medium text-gray-600 cursor-pointer">
-                <option>This Week</option>
-                <option>This Month</option>
-              </select>
+              <h2 className="text-lg font-bold text-gray-900">Task Volume (Last 7 Days)</h2>
             </div>
             
             <div className="h-64 flex items-end gap-2 sm:gap-4 pt-4 border-b border-gray-100 pb-2 relative">
-              {/* Mock Bar Chart */}
               <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-400 pb-2">
-                <span>100</span><span>75</span><span>50</span><span>25</span><span>0</span>
+                <span>Total</span><span>Tasks</span>
               </div>
-              <div className="ml-8 flex-1 flex items-end justify-between gap-2 h-full">
-                {[45, 60, 35, 80, 55, 90, 70].map((h, i) => (
-                  <div key={i} className="w-full flex justify-center group">
-                    <div 
-                      className="w-full max-w-[40px] bg-blue-100 rounded-t-md relative overflow-hidden transition-all group-hover:bg-blue-200" 
-                      style={{ height: `${h}%` }}
-                    >
-                      <div className="absolute bottom-0 left-0 right-0 bg-[#2563EB]" style={{ height: `${h * 0.7}%` }}></div>
+              <div className="ml-12 flex-1 flex items-end justify-between gap-2 h-full">
+                {(() => {
+                  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                  const data = [0, 0, 0, 0, 0, 0, 0];
+                  const today = new Date();
+                  metrics.allTasks?.forEach(t => {
+                    const d = new Date(t.createdAt);
+                    const diffTime = Math.abs(today - d);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                    if (diffDays <= 7) {
+                      data[d.getDay()]++;
+                    }
+                  });
+                  
+                  const max = Math.max(...data, 1);
+                  const scaled = data.map(v => Math.round((v / max) * 100));
+                  
+                  return scaled.map((h, i) => (
+                    <div key={i} className="w-full flex justify-center group flex-col items-center gap-1">
+                      <span className="text-xs text-gray-500 font-bold opacity-0 group-hover:opacity-100 transition-opacity">{data[i]}</span>
+                      <div 
+                        className="w-full max-w-[40px] bg-blue-100 rounded-t-md relative overflow-hidden transition-all group-hover:bg-blue-200" 
+                        style={{ height: `${Math.max(h, 2)}%` }}
+                      >
+                        <div className="absolute bottom-0 left-0 right-0 bg-[#2563EB]" style={{ height: `100%` }}></div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ));
+                })()}
               </div>
             </div>
-            <div className="ml-8 mt-4 flex justify-between text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            <div className="ml-12 mt-4 flex justify-between text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
             </div>
           </div>
 
-          {/* Task Completion Analytics (Mockup) */}
+          {/* Task Completion Analytics */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col">
             <h2 className="text-lg font-bold text-gray-900 mb-6">Task Completion</h2>
             <div className="flex-1 flex flex-col items-center justify-center">
               <div className="relative w-48 h-48">
-                {/* SVG Donut Chart Mockup */}
-                <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
-                  <path
-                    className="text-gray-100"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="text-[#2563EB]"
-                    strokeDasharray="65, 100"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    className="text-[#6366F1]"
-                    strokeDasharray="20, 100"
-                    strokeDashoffset="-65"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-3xl font-extrabold text-gray-900 tracking-tighter">85%</span>
-                  <span className="text-xs text-gray-500 font-medium">Completed</span>
-                </div>
+                {(() => {
+                  const completedPct = metrics.totalTasks > 0 ? Math.round((metrics.completedTasks / metrics.totalTasks) * 100) : 0;
+                  const inProgressPct = metrics.totalTasks > 0 ? Math.round((metrics.inProgressTasks / metrics.totalTasks) * 100) : 0;
+                  const todoPct = metrics.totalTasks > 0 ? Math.round((metrics.todoTasks / metrics.totalTasks) * 100) : 0;
+                  return (
+                    <>
+                      <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                        <path
+                          className="text-gray-100"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="text-[#2563EB]"
+                          strokeDasharray={`${completedPct}, 100`}
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          strokeLinecap="round"
+                        />
+                        <path
+                          className="text-[#6366F1]"
+                          strokeDasharray={`${inProgressPct}, 100`}
+                          strokeDashoffset={`-${completedPct}`}
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-3xl font-extrabold text-gray-900 tracking-tighter">{completedPct}%</span>
+                        <span className="text-xs text-gray-500 font-medium">Completed</span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
               <div className="mt-8 w-full space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#2563EB]"></div><span className="text-gray-600 font-medium">Done</span></div>
-                  <span className="font-bold text-gray-900">65%</span>
+                  <span className="font-bold text-gray-900">{metrics.totalTasks > 0 ? Math.round((metrics.completedTasks / metrics.totalTasks) * 100) : 0}%</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-[#6366F1]"></div><span className="text-gray-600 font-medium">In Progress</span></div>
-                  <span className="font-bold text-gray-900">20%</span>
+                  <span className="font-bold text-gray-900">{metrics.totalTasks > 0 ? Math.round((metrics.inProgressTasks / metrics.totalTasks) * 100) : 0}%</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-gray-200"></div><span className="text-gray-600 font-medium">Todo</span></div>
-                  <span className="font-bold text-gray-900">15%</span>
+                  <span className="font-bold text-gray-900">{metrics.totalTasks > 0 ? Math.round((metrics.todoTasks / metrics.totalTasks) * 100) : 0}%</span>
                 </div>
               </div>
             </div>
@@ -350,31 +385,35 @@ export default function Dashboard() {
           {/* Recent Activities */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-gray-900">Recent Activities</h2>
-              <button className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">View All</button>
+              <h2 className="text-lg font-bold text-gray-900">Recent Tasks</h2>
+              <button onClick={() => navigate('/tasks')} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">View All</button>
             </div>
             <div className="space-y-6">
-              {[
-                { user: 'Alex', action: 'completed task', target: 'Design System Update', time: '2 hours ago', color: 'bg-green-500' },
-                { user: 'Sarah', action: 'commented on', target: 'API Integration', time: '4 hours ago', color: 'bg-blue-500' },
-                { user: 'You', action: 'created project', target: 'Q3 Marketing Site', time: 'Yesterday', color: 'bg-purple-500' },
-                { user: 'Mike', action: 'moved task to Review', target: 'Mobile Navigation', time: 'Yesterday', color: 'bg-orange-500' }
-              ].map((activity, i) => (
-                <div key={i} className="flex gap-4">
-                  <div className="relative">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600 z-10 relative border-2 border-white">
-                      {activity.user.charAt(0)}
+              {metrics.recentTasks?.length === 0 ? (
+                <div className="text-sm text-gray-400">No recent tasks.</div>
+              ) : (
+                metrics.recentTasks?.map((task, i) => {
+                  const isNew = task.createdAt === task.updatedAt;
+                  const action = isNew ? 'created task' : 'updated task';
+                  const time = new Date(task.updatedAt).toLocaleDateString();
+                  return (
+                    <div key={i} className="flex gap-4">
+                      <div className="relative">
+                        <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-xs font-bold text-indigo-600 z-10 relative border-2 border-white">
+                          {task.creator?.name?.charAt(0).toUpperCase() || 'U'}
+                        </div>
+                        {i !== metrics.recentTasks.length - 1 && <div className="absolute top-8 bottom-[-24px] left-1/2 w-px bg-gray-100 -translate-x-1/2"></div>}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-900">
+                          <span className="font-bold">{task.creator?.name || 'Someone'}</span> <span className="text-gray-500">{action}</span> <span className="font-bold">{task.title}</span>
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">{time}</p>
+                      </div>
                     </div>
-                    {i !== 3 && <div className="absolute top-8 bottom-[-24px] left-1/2 w-px bg-gray-100 -translate-x-1/2"></div>}
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-900">
-                      <span className="font-bold">{activity.user}</span> <span className="text-gray-500">{activity.action}</span> <span className="font-bold">{activity.target}</span>
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -385,25 +424,24 @@ export default function Dashboard() {
               <button onClick={() => navigate('/calendar')} className="text-sm font-semibold text-blue-600 hover:text-blue-700 cursor-pointer">View Calendar</button>
             </div>
             <div className="space-y-4">
-              {[
-                { title: 'Finalize Q3 Budget', project: 'Finance', date: 'Tomorrow', color: 'bg-red-500' },
-                { title: 'Launch Marketing Campaign', project: 'Marketing', date: 'Oct 24', color: 'bg-orange-500' },
-                { title: 'User Testing Interviews', project: 'Product', date: 'Oct 26', color: 'bg-blue-500' },
-                { title: 'Security Audit Report', project: 'Engineering', date: 'Oct 28', color: 'bg-purple-500' }
-              ].map((task, i) => (
-                <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors cursor-pointer group">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-2 h-2 rounded-full ${task.color}`}></div>
-                    <div>
-                      <h4 className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{task.title}</h4>
-                      <p className="text-xs text-gray-500 mt-0.5">{task.project}</p>
+              {metrics.upcomingDeadlines?.length === 0 ? (
+                <div className="text-sm text-gray-400">No upcoming deadlines.</div>
+              ) : (
+                metrics.upcomingDeadlines?.map((task, i) => (
+                  <div key={i} onClick={() => navigate(`/tasks/${task.id}`)} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-gray-200 transition-colors cursor-pointer group">
+                    <div className="flex items-center gap-4">
+                      <div className="w-2 h-2 rounded-full bg-rose-500"></div>
+                      <div>
+                        <h4 className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{task.title}</h4>
+                        <p className="text-xs text-gray-500 mt-0.5">{task.project?.name || 'No Project'}</p>
+                      </div>
+                    </div>
+                    <div className="text-xs font-semibold px-2.5 py-1 bg-gray-50 text-gray-600 rounded-lg border border-gray-200">
+                      {new Date(task.dueDate).toLocaleDateString()}
                     </div>
                   </div>
-                  <div className="text-xs font-semibold px-2.5 py-1 bg-gray-50 text-gray-600 rounded-lg border border-gray-200">
-                    {task.date}
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 

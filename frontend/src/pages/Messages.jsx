@@ -17,7 +17,7 @@ export default function Messages() {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const res = await projectService.getProjects();
+        const res = await projectService.getAllProjects();
         if (res.success) {
           setProjects(res.data);
           if (res.data.length > 0) {

@@ -60,6 +60,7 @@ export class AttachmentController {
 
       const attachment = await AttachmentService.createAttachment(
         taskId,
+        null,
         req.file.originalname,
         req.file.path,
         req.file.mimetype,
@@ -90,6 +91,58 @@ export class AttachmentController {
       res.status(200).json({
         success: true,
         message: 'Attachments retrieved successfully',
+        data: attachments,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // POST /api/projects/:id/attachments
+  public static async uploadProjectAttachment(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        throw new AppError('Invalid project ID', 400);
+      }
+
+      if (!req.file) {
+        throw new AppError('File upload payload is missing', 400);
+      }
+
+      const attachment = await AttachmentService.createAttachment(
+        null,
+        projectId,
+        req.file.originalname,
+        req.file.path,
+        req.file.mimetype,
+        req.user!.id,
+        req.user!.role
+      );
+
+      res.status(201).json({
+        success: true,
+        message: 'Attachment uploaded successfully to project',
+        data: attachment,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // GET /api/projects/:id/attachments
+  public static async getProjectAttachments(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const projectId = parseInt(req.params.id);
+      if (isNaN(projectId)) {
+        throw new AppError('Invalid project ID', 400);
+      }
+
+      const attachments = await AttachmentService.getProjectAttachments(projectId, req.user!.id, req.user!.role);
+
+      res.status(200).json({
+        success: true,
+        message: 'Project attachments retrieved successfully',
         data: attachments,
       });
     } catch (error) {
@@ -135,13 +188,22 @@ export class AttachmentController {
 
       // Option A: ADMIN has read-only access to all attachments. Other roles must belong to the project.
       if (req.user!.role !== Role.ADMIN) {
-        const task = await prisma.task.findUnique({ where: { id: attachment.taskId } });
-        if (!task) {
-          throw new AppError('Task associated with this attachment not found', 404);
+        let targetProjectId = attachment.projectId;
+        if (attachment.taskId) {
+          const task = await prisma.task.findUnique({ where: { id: attachment.taskId } });
+          if (!task) {
+            throw new AppError('Task associated with this attachment not found', 404);
+          }
+          targetProjectId = task.projectId;
         }
+        
+        if (!targetProjectId) {
+          throw new AppError('Attachment has no associated task or project', 404);
+        }
+
         const isMember = await prisma.projectMember.findFirst({
           where: {
-            projectId: task.projectId,
+            projectId: targetProjectId,
             userId: req.user!.id,
           },
         });

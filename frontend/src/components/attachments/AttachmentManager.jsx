@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import attachmentService from '../../services/attachmentService';
+import projectService from '../../services/projectService';
 import { useAuth } from '../../context/AuthContext';
 
-export default function AttachmentManager({ taskId }) {
+export default function AttachmentManager({ taskId, projectId }) {
   const { user } = useAuth();
+  const fileInputId = useId();
   const [attachments, setAttachments] = useState([]);
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,7 +14,12 @@ export default function AttachmentManager({ taskId }) {
   const fetchAttachments = async () => {
     try {
       setLoading(true);
-      const res = await attachmentService.getTaskAttachments(taskId);
+      let res;
+      if (projectId) {
+        res = await projectService.getAttachments(projectId);
+      } else {
+        res = await attachmentService.getTaskAttachments(taskId);
+      }
       if (res.success) {
         setAttachments(res.data);
       }
@@ -24,8 +31,10 @@ export default function AttachmentManager({ taskId }) {
   };
 
   useEffect(() => {
-    fetchAttachments();
-  }, [taskId]);
+    if (taskId || projectId) {
+      fetchAttachments();
+    }
+  }, [taskId, projectId]);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -45,11 +54,16 @@ export default function AttachmentManager({ taskId }) {
 
     try {
       setUploading(true);
-      const res = await attachmentService.uploadAttachment(taskId, file);
+      let res;
+      if (projectId) {
+        res = await projectService.uploadAttachment(projectId, file);
+      } else {
+        res = await attachmentService.uploadAttachment(taskId, file);
+      }
+      
       if (res.success) {
         setFile(null);
-        // Clear file input manually
-        document.getElementById('task-file-input').value = '';
+        document.getElementById(fileInputId).value = '';
         fetchAttachments();
       }
     } catch (err) {
@@ -87,7 +101,7 @@ export default function AttachmentManager({ taskId }) {
   return (
     <div className="flex flex-col gap-4">
       <h3 className="text-[16px] font-bold text-indigo-950 border-b border-gray-50 pb-2">
-        📎 Task Attachments
+        📎 {projectId ? 'Project Attachments' : 'Task Attachments'}
       </h3>
 
       {/* Upload Form */}
@@ -95,7 +109,7 @@ export default function AttachmentManager({ taskId }) {
         <>
           <form onSubmit={handleUpload} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
             <input
-              id="task-file-input"
+              id={fileInputId}
               type="file"
               accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg"
               onChange={handleFileChange}
@@ -117,7 +131,7 @@ export default function AttachmentManager({ taskId }) {
       {loading ? (
         <div className="text-gray-400 text-[13px] py-2">Loading files...</div>
       ) : attachments.length === 0 ? (
-        <div className="text-gray-400 text-[13px] py-2 italic">No files attached to this task.</div>
+        <div className="text-gray-400 text-[13px] py-2 italic">No files attached to this {projectId ? 'project' : 'task'}.</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
           {attachments.map((att) => (
