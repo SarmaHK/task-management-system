@@ -14,6 +14,7 @@ router.post('/refresh-token', AuthController.refreshToken);
 
 // Protected routes (requires valid JWT token)
 router.get('/me', authenticateUser as any, AuthController.getMe);
+router.put('/profile', authenticateUser as any, AuthController.updateProfile);
 router.put('/change-password', authenticateUser as any, AuthController.changePassword);
 router.post('/first-login-reset', authenticateUser as any, AuthController.firstLoginReset);
 router.get('/test', authenticateUser as any, (req: any, res: any) => {

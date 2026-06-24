@@ -34,7 +34,7 @@ export class CommentService {
         userId,
       },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, status: true } },
       },
     });
 
@@ -100,7 +100,7 @@ export class CommentService {
     return prisma.comment.findMany({
       where: { taskId },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, status: true } },
       },
       orderBy: { createdAt: 'desc' },
     });

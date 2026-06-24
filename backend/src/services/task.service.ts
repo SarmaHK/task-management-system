@@ -77,7 +77,7 @@ export class TaskService {
         assignees: {
           include: {
             user: {
-              select: { id: true, name: true, email: true },
+              select: { id: true, name: true, email: true, status: true },
             },
           },
         },
@@ -132,6 +132,20 @@ export class TaskService {
     });
     if (!isCreatorMember) {
       throw new AppError('Access forbidden: You are not a member of this project', 403);
+    }
+
+    // 6.5 Verify all assignees are active users
+    if (assigneeIds && assigneeIds.length > 0) {
+      const activeAssignees = await prisma.user.findMany({
+        where: {
+          id: { in: assigneeIds },
+          status: 'ACTIVE',
+        },
+        select: { id: true },
+      });
+      if (activeAssignees.length !== assigneeIds.length) {
+        throw new AppError('One or more assignees are inactive or do not exist', 400);
+      }
     }
 
     // 7. Verify project membership for all assignees, automatically add if missing
@@ -275,19 +289,19 @@ export class TaskService {
           select: { id: true, name: true },
         },
         creator: {
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true, status: true },
         },
         assignees: {
           include: {
             user: {
-              select: { id: true, name: true, email: true },
+              select: { id: true, name: true, email: true, status: true },
             },
           },
         },
         comments: {
           include: {
             user: {
-              select: { id: true, name: true },
+              select: { id: true, name: true, status: true },
             },
           },
           orderBy: { createdAt: 'desc' },
@@ -295,7 +309,7 @@ export class TaskService {
         taskActivities: {
           include: {
             user: {
-              select: { id: true, name: true },
+              select: { id: true, name: true, status: true },
             },
           },
           orderBy: { createdAt: 'desc' },
@@ -358,6 +372,20 @@ export class TaskService {
       const date = new Date(dueDate);
       if (isNaN(date.getTime())) {
         throw new AppError('Invalid due date format', 400);
+      }
+    }
+
+    // 6.5 Verify all assignees are active users
+    if (assigneeIds && assigneeIds.length > 0) {
+      const activeAssignees = await prisma.user.findMany({
+        where: {
+          id: { in: assigneeIds },
+          status: 'ACTIVE',
+        },
+        select: { id: true },
+      });
+      if (activeAssignees.length !== assigneeIds.length) {
+        throw new AppError('One or more assignees are inactive or do not exist', 400);
       }
     }
 

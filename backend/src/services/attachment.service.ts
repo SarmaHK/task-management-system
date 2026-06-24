@@ -56,14 +56,12 @@ export class AttachmentService {
         if (fs.existsSync(fileUrl)) fs.unlinkSync(fileUrl);
         throw new AppError('Project not found', 404);
       }
-      if (userRole !== Role.ADMIN) {
-        const isMember = await prisma.projectMember.findFirst({
-          where: { projectId, userId }
-        });
-        if (!isMember) {
-          if (fs.existsSync(fileUrl)) fs.unlinkSync(fileUrl);
-          throw new AppError('Access forbidden: You are not a member of this project', 403);
-        }
+      const isMember = await prisma.projectMember.findFirst({
+        where: { projectId, userId }
+      });
+      if (!isMember) {
+        if (fs.existsSync(fileUrl)) fs.unlinkSync(fileUrl);
+        throw new AppError('Access forbidden: You are not a member of this project', 403);
       }
     } else {
       if (fs.existsSync(fileUrl)) fs.unlinkSync(fileUrl);
@@ -144,7 +142,7 @@ export class AttachmentService {
     return prisma.attachment.findMany({
       where: { taskId },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, status: true } },
       },
     });
   }
@@ -168,7 +166,7 @@ export class AttachmentService {
     return prisma.attachment.findMany({
       where: { projectId },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, status: true } },
       },
     });
   }
