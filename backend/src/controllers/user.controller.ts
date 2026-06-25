@@ -35,10 +35,9 @@ export const deactivateUser = async (req: Request, res: Response): Promise<void>
     // Disconnect active socket connections for this user immediately
     SocketService.disconnectUser(updatedUser.id);
 
-    await SocketService.sendNotification(updatedUser.id, {
+    await SocketService.sendNotification(userId, {
+      message: 'Your account has been deactivated by an administrator. You will be logged out shortly.',
       type: 'ADMIN_UPDATE',
-      title: 'Account Deactivated',
-      message: 'Your account has been deactivated by an Administrator.'
     });
     res.status(200).json({
       success: true,
@@ -67,7 +66,6 @@ export const activateUser = async (req: Request, res: Response): Promise<void> =
 
     await SocketService.sendNotification(updatedUser.id, {
       type: 'ADMIN_UPDATE',
-      title: 'Account Activated',
       message: 'Your account has been activated by an Administrator.'
     });
 

@@ -1,49 +1,10 @@
 import { Response, NextFunction } from 'express';
 import { AttachmentService } from '../services/attachment.service';
+import { S3Service } from '../services/s3.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/AppError';
 import { Role } from '@prisma/client';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
-
-// ─── Configure Multer disk storage ───────────────────
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
-});
-
-// ─── File filter constraints ─────────────────────────
-const allowedMimeTypes = [
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'image/png',
-  'image/jpeg',
-];
-
-const fileFilter = (req: any, file: any, cb: any) => {
-  if (allowedMimeTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new AppError('Only PDF, DOCX, XLSX, PNG, and JPG formats are allowed', 400), false);
-  }
-};
-
-export const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-});
+import { prisma } from '../config/database';
 
 export class AttachmentController {
   // POST /api/tasks/:id/attachments
@@ -62,7 +23,8 @@ export class AttachmentController {
         taskId,
         null,
         req.file.originalname,
-        req.file.path,
+        req.file.buffer,
+        req.file.size,
         req.file.mimetype,
         req.user!.id,
         req.user!.role
@@ -114,7 +76,8 @@ export class AttachmentController {
         null,
         projectId,
         req.file.originalname,
-        req.file.path,
+        req.file.buffer,
+        req.file.size,
         req.file.mimetype,
         req.user!.id,
         req.user!.role
@@ -182,11 +145,7 @@ export class AttachmentController {
         throw new AppError('Attachment not found', 404);
       }
 
-      if (!fs.existsSync(attachment.fileUrl)) {
-        throw new AppError('File not found on disk', 404);
-      }
-
-      // Option A: ADMIN has read-only access to all attachments. Other roles must belong to the project.
+      // Authorization logic
       if (req.user!.role !== Role.ADMIN) {
         let targetProjectId = attachment.projectId;
         if (attachment.taskId) {
@@ -212,14 +171,62 @@ export class AttachmentController {
         }
       }
 
-      res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');
-      res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
-      
-      const fileStream = fs.createReadStream(attachment.fileUrl);
-      fileStream.pipe(res);
+      // If it is an old file stored on disk
+      if (!attachment.storageKey) {
+        const fs = require('fs');
+        if (!fs.existsSync(attachment.fileUrl)) {
+          throw new AppError('File not found on disk', 404);
+        }
+        res.setHeader('Content-Type', attachment.mimeType || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
+        const fileStream = fs.createReadStream(attachment.fileUrl);
+        fileStream.pipe(res);
+        return;
+      }
+
+      // Generate Pre-signed URL for S3
+      const downloadUrl = await S3Service.getSignedDownloadUrl(attachment.storageKey, attachment.filename);
+
+      // Return URL to client or redirect
+      res.status(200).json({
+        success: true,
+        message: 'Download URL generated successfully',
+        data: {
+          url: downloadUrl
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // PATCH /api/attachments/:id/rename
+  public static async renameAttachment(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const attachmentId = parseInt(req.params.id);
+      if (isNaN(attachmentId)) {
+        throw new AppError('Invalid attachment ID', 400);
+      }
+
+      const { filename } = req.body;
+      if (!filename || typeof filename !== 'string') {
+        throw new AppError('Filename is required and must be a string', 400);
+      }
+
+      const updatedAttachment = await AttachmentService.renameAttachment(
+        attachmentId,
+        filename,
+        req.user!.id,
+        req.user!.role
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Attachment renamed successfully',
+        data: updatedAttachment,
+      });
     } catch (error) {
       next(error);
     }
   }
 }
-import { prisma } from '../config/database'; // Import prisma for download endpoint query

@@ -33,8 +33,9 @@ router.delete('/:id/members/:memberId', checkRole([Role.PROJECT_MANAGER]) as any
 router.get('/:id/tasks', checkRole([Role.ADMIN, Role.PROJECT_MANAGER, Role.COLLABORATOR]) as any, ProjectController.getProjectTasks);
 
 // Project Attachments
-import { AttachmentController, upload } from '../controllers/attachment.controller';
-router.post('/:id/attachments', upload.single('file'), AttachmentController.uploadProjectAttachment);
+import { AttachmentController } from '../controllers/attachment.controller';
+import { uploadMiddleware } from '../middlewares/upload.middleware';
+router.post('/:id/attachments', uploadMiddleware.single('file'), AttachmentController.uploadProjectAttachment);
 router.get('/:id/attachments', AttachmentController.getProjectAttachments);
 
 export default router;
