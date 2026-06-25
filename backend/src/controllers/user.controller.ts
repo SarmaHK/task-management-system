@@ -8,6 +8,9 @@ import { SocketService } from '../services/socket.service';
 import { UserService } from '../services/user.service';
 import { createUserSchema } from '../validators/user.validator';
 import { z } from 'zod';
+import { EmailService } from '../services/email.service';
+import { getActivationEmailTemplate } from '../templates/emails/activation.template';
+import { getDeactivationEmailTemplate } from '../templates/emails/deactivation.template';
 
 const mapRoleIdToEnum = (roleId: any): Role => {
   const rid = parseInt(roleId);
@@ -26,6 +29,14 @@ export const deactivateUser = async (req: Request, res: Response): Promise<void>
       data: { status: UserStatus.INACTIVE }
     });
 
+    // Remove user from all projects and task assignments
+    await prisma.projectMember.deleteMany({
+      where: { userId: updatedUser.id }
+    });
+    await prisma.taskAssignment.deleteMany({
+      where: { userId: updatedUser.id }
+    });
+
     // Log administrative action
     await SystemLogger.log('USER_DISABLED', `User ${updatedUser.name} (${updatedUser.email}) was deactivated by Administrator`);
 
@@ -40,6 +51,15 @@ export const deactivateUser = async (req: Request, res: Response): Promise<void>
       type: 'ADMIN_UPDATE',
 
     });
+
+    // Send deactivation email
+    await EmailService.sendEmail({
+      to: updatedUser.email,
+      subject: 'Account Deactivated',
+      text: `Hello ${updatedUser.name},\n\nYour account has been deactivated by an Administrator. If you believe this is a mistake, please contact support.`,
+      html: getDeactivationEmailTemplate(updatedUser.name)
+    }).catch(err => console.error('Failed to send deactivation email:', err));
+
     res.status(200).json({
       success: true,
       message: 'User deactivated successfully',
@@ -69,6 +89,14 @@ export const activateUser = async (req: Request, res: Response): Promise<void> =
       type: 'ADMIN_UPDATE',
       message: 'Your account has been activated by an Administrator.'
     });
+
+    // Send activation email
+    await EmailService.sendEmail({
+      to: updatedUser.email,
+      subject: 'Account Activated',
+      text: `Hello ${updatedUser.name},\n\nYour account has been activated by an Administrator. You can use your previous password with your email to log in.`,
+      html: getActivationEmailTemplate(updatedUser.name)
+    }).catch(err => console.error('Failed to send activation email:', err));
 
     res.status(200).json({
       success: true,
@@ -253,14 +281,9 @@ export const getSearchableUsers = async (req: Request, res: Response): Promise<v
 
     const searchTerm = String(search || '').trim();
 
-    // Enforce constraints: search must be at least 2 characters
-    if (searchTerm.length < 2) {
-      res.status(200).json({
-        success: true,
-        data: []
-      });
-      return;
-    }
+    // Enforce constraints: search must be at least 2 characters if search exists, else return all
+    // Update: Removed >=2 char requirement. We want to return all COLLABORATORS.
+
 
     const takeVal = Math.min(parseInt(String(limit || '20'), 10), 50);
     const skipVal = Math.max(parseInt(String(offset || '0'), 10), 0);
@@ -268,10 +291,13 @@ export const getSearchableUsers = async (req: Request, res: Response): Promise<v
     const users = await prisma.user.findMany({
       where: {
         status: UserStatus.ACTIVE,
-        OR: [
-          { name: { contains: searchTerm, mode: 'insensitive' } },
-          { email: { contains: searchTerm, mode: 'insensitive' } }
-        ]
+        role: Role.COLLABORATOR, // Only return collaborators
+        ...(searchTerm ? {
+          OR: [
+            { name: { contains: searchTerm, mode: 'insensitive' } },
+            { email: { contains: searchTerm, mode: 'insensitive' } }
+          ]
+        } : {})
       },
       select: {
         id: true,

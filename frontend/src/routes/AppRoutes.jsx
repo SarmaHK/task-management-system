@@ -55,11 +55,24 @@ function RequireAuth({ children, allowedRoles }) {
   return children;
 }
 
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+
 // ── Redirect if already logged in ─────────────────────────────────────────
 function PublicOnly({ children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
+  const location = useLocation();
+  const forceLogin = new URLSearchParams(location.search).get('forceLogin');
+
+  useEffect(() => {
+    if (forceLogin && user) {
+      logout();
+    }
+  }, [forceLogin, user, logout]);
+
   if (loading) return null;
-  if (user && !user.firstLogin) {
+  
+  if (user && !user.firstLogin && !forceLogin) {
     if (user.role === 'ADMIN') {
       return <Navigate to="/admin/users" replace />;
     }
