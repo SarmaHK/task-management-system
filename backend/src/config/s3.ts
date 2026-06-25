@@ -4,20 +4,30 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const region = process.env.AWS_REGION;
-const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+const {
+  AWS_REGION,
+  AWS_ACCESS_KEY_ID,
+  AWS_SECRET_ACCESS_KEY,
+  AWS_S3_BUCKET,
+} = process.env;
 
-if (!region || !accessKeyId || !secretAccessKey) {
-  console.warn('⚠️  AWS S3 credentials are not fully configured in the environment variables.');
+if (
+  !AWS_REGION ||
+  !AWS_ACCESS_KEY_ID ||
+  !AWS_SECRET_ACCESS_KEY ||
+  !AWS_S3_BUCKET
+) {
+  throw new Error(
+    'AWS S3 configuration is missing. Please check your environment variables.'
+  );
 }
 
 export const s3Client = new S3Client({
-  region: region || 'us-east-1',
+  region: AWS_REGION,
   credentials: {
-    accessKeyId: accessKeyId || '',
-    secretAccessKey: secretAccessKey || '',
+    accessKeyId: AWS_ACCESS_KEY_ID,
+    secretAccessKey: AWS_SECRET_ACCESS_KEY,
   },
 });
 
-export const s3BucketName = process.env.AWS_S3_BUCKET || '';
+export const s3BucketName = AWS_S3_BUCKET;
