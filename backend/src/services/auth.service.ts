@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
 import { generateAccessToken, generateRefreshToken, verifyToken, verifyRefreshToken } from '../utils/jwt';
+import { EmailService } from './email.service';
 import { Role, UserStatus } from '@prisma/client';
 import {
   RegisterInput,
@@ -189,32 +190,60 @@ export class AuthService {
       throw new AppError('User not found', 404);
     }
 
-    // Generate random hex reset token
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const expiry = new Date(Date.now() + 3600000); // 1 hour validity
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes validity
 
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        resetToken: rawToken,
+        resetToken: otp,
         resetTokenExpiry: expiry,
       },
     });
 
     // Output for development to console
-    console.log(`[DEV ONLY] Password reset token for ${email}: ${rawToken}`);
+    console.log(`[DEV ONLY] Password reset OTP for ${email}: ${otp}`);
 
-    return rawToken;
+    // Send email
+    await EmailService.sendForgotPasswordEmail(user.name, user.email, otp);
+
+    return otp;
+  }
+
+  /**
+   * Verifies an OTP for password reset
+   */
+  public static async verifyOTP(email: string, otp: string): Promise<boolean> {
+    if (!email || !otp) {
+      throw new AppError('Email and verification code are required', 400);
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        email: email.toLowerCase(),
+        resetToken: otp,
+        resetTokenExpiry: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!user) {
+      throw new AppError('Invalid or expired verification code', 400);
+    }
+
+    return true;
   }
 
   /**
    * Resets password using a reset token
    */
   public static async resetPassword(input: ResetPasswordInput): Promise<void> {
-    const { token, newPassword } = input;
+    const { email, otp, newPassword } = input;
 
-    if (!token || !newPassword) {
-      throw new AppError('Token and new password are required', 400);
+    if (!email || !otp || !newPassword) {
+      throw new AppError('Email, verification code, and new password are required', 400);
     }
 
     if (!PASSWORD_REGEX.test(newPassword)) {
@@ -226,7 +255,8 @@ export class AuthService {
 
     const user = await prisma.user.findFirst({
       where: {
-        resetToken: token,
+        email: email.toLowerCase(),
+        resetToken: otp,
         resetTokenExpiry: {
           gt: new Date(),
         },
@@ -234,7 +264,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new AppError('Invalid or expired reset token', 400);
+      throw new AppError('Invalid or expired verification code', 400);
     }
 
     const salt = await bcrypt.genSalt(10);

@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { getOnboardingEmailTemplate } from '../templates/emails/onboarding.template';
+import { getForgotPasswordEmailTemplate } from '../templates/emails/forgot-password.template';
 import { SystemLogger } from '../utils/logger';
 
 export interface EmailOptions {
@@ -92,6 +93,26 @@ ${options.text}
     const subject = 'Welcome to TaskFlow - Account Created!';
     const text = `Hello ${name},\n\nYour account has been successfully created by the Administrator!\n\nYour credentials to sign in:\n- Login Page: http://localhost:5173/login\n- Username/Email: ${email}\n- Temporary Password: ${tempPassword}\n\nNote: On your first login, you will be required to reset this password.\n\nBest regards,\nTaskFlow Team`;
     const html = getOnboardingEmailTemplate(name, email, role, tempPassword);
+
+    await this.sendEmail({
+      to: email,
+      subject,
+      text,
+      html
+    });
+  }
+
+  /**
+   * Sends the forgot password OTP email
+   */
+  public static async sendForgotPasswordEmail(
+    name: string,
+    email: string,
+    otp: string
+  ): Promise<void> {
+    const subject = 'TaskFlow - Password Reset Verification Code';
+    const text = `Hi ${name},\n\nWe received a request to reset the password for your TaskFlow account.\n\nYour 6-digit verification code is: ${otp}\n\nThis code is valid for 10 minutes.\n\nBest regards,\nTaskFlow Team`;
+    const html = getForgotPasswordEmailTemplate(name, otp);
 
     await this.sendEmail({
       to: email,

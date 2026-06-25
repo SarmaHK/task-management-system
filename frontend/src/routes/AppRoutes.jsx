@@ -3,6 +3,7 @@
  */
 
 import AdminUsers from '../pages/AdminUsers';
+import ReportGenerator from '../pages/admin/ReportGenerator';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -10,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 // Auth pages
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import ForgotPassword from '../pages/ForgotPassword';
 import ForceResetPassword from '../pages/ForceResetPassword';
 
 // Protected pages
@@ -93,6 +95,7 @@ export default function AppRoutes() {
       {/* Public auth routes */}
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
       <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
+      <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
       <Route path="/setup-password" element={<ForceResetPassword />} />
 
       {/* ── Protected routes ── */}
@@ -153,6 +156,14 @@ export default function AppRoutes() {
         element={
           <RequireAuth allowedRoles={['ADMIN']}>
             <AdminUsers />
+          </RequireAuth>
+        } 
+      />
+      <Route 
+        path="/admin/reports" 
+        element={
+          <RequireAuth allowedRoles={['ADMIN']}>
+            <ReportGenerator />
           </RequireAuth>
         } 
       />
