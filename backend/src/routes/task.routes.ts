@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { TaskController } from '../controllers/task.controller';
 import { CommentController } from '../controllers/comment.controller';
-import { AttachmentController, upload } from '../controllers/attachment.controller';
+import { AttachmentController } from '../controllers/attachment.controller';
+import { uploadMiddleware } from '../middlewares/upload.middleware';
 import { authenticateUser } from '../middlewares/auth.middleware';
 import { checkRole } from '../middlewares/role.middleware';
 import { Role } from '@prisma/client';
@@ -47,7 +48,7 @@ router.post('/:id/comments', checkRole([Role.PROJECT_MANAGER, Role.COLLABORATOR]
 router.get('/:id/comments', checkRole([Role.ADMIN, Role.PROJECT_MANAGER, Role.COLLABORATOR]) as any, CommentController.getCommentsForTask);
 
 // ─── Task Attachment Routes ────────────────────────
-router.post('/:id/attachments', checkRole([Role.PROJECT_MANAGER, Role.COLLABORATOR]) as any, upload.single('file'), AttachmentController.uploadAttachment);
+router.post('/:id/attachments', checkRole([Role.ADMIN, Role.PROJECT_MANAGER, Role.COLLABORATOR]) as any, uploadMiddleware.single('file'), AttachmentController.uploadAttachment);
 router.get('/:id/attachments', checkRole([Role.ADMIN, Role.PROJECT_MANAGER, Role.COLLABORATOR]) as any, AttachmentController.getTaskAttachments);
 
 export default router;

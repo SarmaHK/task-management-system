@@ -1,8 +1,8 @@
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
 import { ActivityType, Role } from '@prisma/client';
-import fs from 'fs';
 import { SocketService } from './socket.service';
+import { S3Service } from './s3.service';
 
 export class AttachmentService {
   // ─── CREATE ATTACHMENT RECORD ────────────────────────
@@ -10,25 +10,17 @@ export class AttachmentService {
     taskId: number | null,
     projectId: number | null,
     filename: string,
-    fileUrl: string,
+    fileBuffer: Buffer,
+    fileSize: number,
     mimeType: string,
     userId: number,
     userRole: Role
   ) {
-    if (userRole === Role.ADMIN) {
-      // Clean up file if admin tries to upload
-      if (fs.existsSync(fileUrl)) {
-        fs.unlinkSync(fileUrl);
-      }
-      throw new AppError('Administrators cannot upload attachments', 403);
-    }
-
     let finalProjectId = projectId;
 
     if (taskId) {
       const task = await prisma.task.findUnique({ where: { id: taskId } });
       if (!task) {
-        if (fs.existsSync(fileUrl)) fs.unlinkSync(fileUrl);
         throw new AppError('Task not found', 404);
       }
       finalProjectId = task.projectId;
@@ -38,7 +30,6 @@ export class AttachmentService {
           where: { taskId_userId: { taskId, userId } },
         });
         if (!assignment) {
-          if (fs.existsSync(fileUrl)) fs.unlinkSync(fileUrl);
           throw new AppError('Collaborators can only upload attachments to tasks assigned to them', 403);
         }
       } else if (userRole === Role.PROJECT_MANAGER) {
@@ -46,32 +37,41 @@ export class AttachmentService {
           where: { projectId: task.projectId, userId }
         });
         if (!isMember) {
-          if (fs.existsSync(fileUrl)) fs.unlinkSync(fileUrl);
           throw new AppError('Access forbidden: You are not a member of this project', 403);
         }
       }
     } else if (projectId) {
       const project = await prisma.project.findUnique({ where: { id: projectId } });
       if (!project) {
-        if (fs.existsSync(fileUrl)) fs.unlinkSync(fileUrl);
         throw new AppError('Project not found', 404);
       }
       const isMember = await prisma.projectMember.findFirst({
         where: { projectId, userId }
       });
       if (!isMember) {
-        if (fs.existsSync(fileUrl)) fs.unlinkSync(fileUrl);
+
         throw new AppError('Access forbidden: You are not a member of this project', 403);
       }
     } else {
-      if (fs.existsSync(fileUrl)) fs.unlinkSync(fileUrl);
       throw new AppError('Must provide taskId or projectId', 400);
     }
+
+    // Generate storageKey
+    const timestamp = Date.now();
+    const safeFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const storageKey = taskId 
+      ? `tasks/task_${taskId}/${timestamp}-${safeFilename}`
+      : `projects/project_${projectId}/${timestamp}-${safeFilename}`;
+
+    // Upload to S3
+    await S3Service.uploadFile(fileBuffer, mimeType, storageKey);
 
     const attachment = await prisma.attachment.create({
       data: {
         filename,
-        fileUrl,
+        fileUrl: '', // Keep for backward compatibility or replace entirely if DB schema allowed removing it. We didn't remove it.
+        storageKey,
+        fileSize,
         mimeType,
         taskId,
         projectId,
@@ -144,6 +144,7 @@ export class AttachmentService {
       include: {
         user: { select: { id: true, name: true, email: true, status: true } },
       },
+      orderBy: { createdAt: 'desc' }
     });
   }
 
@@ -168,6 +169,7 @@ export class AttachmentService {
       include: {
         user: { select: { id: true, name: true, email: true, status: true } },
       },
+      orderBy: { createdAt: 'desc' }
     });
   }
 
@@ -193,11 +195,17 @@ export class AttachmentService {
       throw new AppError('You do not have permission to delete this attachment', 403);
     }
 
-    if (fs.existsSync(attachment.fileUrl)) {
-      try {
-        fs.unlinkSync(attachment.fileUrl);
-      } catch (err) {
-        console.error('Failed to delete physical file:', err);
+    if (attachment.storageKey) {
+      await S3Service.deleteFile(attachment.storageKey);
+    } else {
+      // Backward compatibility for old disk files
+      const fs = require('fs');
+      if (fs.existsSync(attachment.fileUrl)) {
+        try {
+          fs.unlinkSync(attachment.fileUrl);
+        } catch (err) {
+          console.error('Failed to delete physical file:', err);
+        }
       }
     }
 
@@ -213,5 +221,46 @@ export class AttachmentService {
         },
       });
     }
+  }
+
+  // ─── RENAME ATTACHMENT ───────────────────────────────
+  public static async renameAttachment(attachmentId: number, newFilename: string, userId: number, userRole: Role) {
+    const attachment = await prisma.attachment.findUnique({ where: { id: attachmentId } });
+    if (!attachment) {
+      throw new AppError('Attachment not found', 404);
+    }
+
+    let targetProjectId = attachment.projectId;
+    if (attachment.taskId) {
+      const task = await prisma.task.findUnique({ where: { id: attachment.taskId } });
+      targetProjectId = task?.projectId || targetProjectId;
+    }
+
+    const project = targetProjectId ? await prisma.project.findUnique({ where: { id: targetProjectId } }) : null;
+
+    const isUploader = attachment.userId === userId;
+    const isProjectOwnerPM = project && project.ownerId === userId && userRole === Role.PROJECT_MANAGER;
+
+    if (!isUploader && !isProjectOwnerPM && userRole !== Role.ADMIN) {
+      throw new AppError('You do not have permission to rename this attachment', 403);
+    }
+
+    const updatedAttachment = await prisma.attachment.update({
+      where: { id: attachmentId },
+      data: { filename: newFilename },
+    });
+
+    if (attachment.taskId) {
+      await prisma.taskActivity.create({
+        data: {
+          taskId: attachment.taskId,
+          userId,
+          action: ActivityType.UPDATED,
+          description: `Renamed attachment from "${attachment.filename}" to "${newFilename}"`,
+        },
+      });
+    }
+
+    return updatedAttachment;
   }
 }

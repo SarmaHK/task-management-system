@@ -183,17 +183,20 @@ model Comment {
 
 // ─── ATTACHMENTS ─────────────────────────────────────
 model Attachment {
-  id        Int      @id @default(autoincrement())
-  filename  String
-  fileUrl   String
-  mimeType  String?
-  taskId    Int?
-  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  projectId Int?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  filename   String
+  fileUrl    String
+  storageKey String?
+  fileSize   Int      @default(0)
+  mimeType   String?
+  taskId     Int?
+  task       Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  projectId  Int?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt @default(now())
 
   @@index([taskId])
   @@index([projectId])

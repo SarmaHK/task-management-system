@@ -8,8 +8,9 @@ export const attachmentService = {
    * Upload an attachment file for a task
    * @param {number} taskId
    * @param {File} fileObject
+   * @param {function} onUploadProgress
    */
-  uploadAttachment: async (taskId, fileObject) => {
+  uploadAttachment: async (taskId, fileObject, onUploadProgress) => {
     const formData = new FormData();
     formData.append('file', fileObject);
 
@@ -17,6 +18,7 @@ export const attachmentService = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      onUploadProgress,
     });
     return response.data;
   },
@@ -38,11 +40,19 @@ export const attachmentService = {
   },
 
   /**
-   * Get download URL for an attachment (to be consumed by window.open or custom download buttons)
+   * Rename a task attachment
    */
-  getDownloadUrl: (attachmentId) => {
-    const baseUrl = api.defaults.baseURL || '';
-    return `${baseUrl}/attachments/${attachmentId}/download`;
+  renameAttachment: async (attachmentId, newFilename) => {
+    const response = await api.patch(`/attachments/${attachmentId}/rename`, { filename: newFilename });
+    return response.data;
+  },
+
+  /**
+   * Request download URL for an attachment (fetches pre-signed S3 URL)
+   */
+  requestDownloadUrl: async (attachmentId) => {
+    const response = await api.get(`/attachments/${attachmentId}/download`);
+    return response.data;
   },
 };
 

@@ -92,13 +92,14 @@ export const projectService = {
   /**
    * Upload an attachment to a project
    */
-  uploadAttachment: async (id, fileObject) => {
+  uploadAttachment: async (id, fileObject, onUploadProgress) => {
     const formData = new FormData();
     formData.append('file', fileObject);
     const response = await api.post(`/projects/${id}/attachments`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      onUploadProgress,
     });
     return response.data;
   },
