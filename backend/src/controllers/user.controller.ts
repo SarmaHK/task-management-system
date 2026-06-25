@@ -38,6 +38,7 @@ export const deactivateUser = async (req: Request, res: Response): Promise<void>
     await SocketService.sendNotification(userId, {
       message: 'Your account has been deactivated by an administrator. You will be logged out shortly.',
       type: 'ADMIN_UPDATE',
+
     });
     res.status(200).json({
       success: true,
@@ -82,33 +83,10 @@ export const activateUser = async (req: Request, res: Response): Promise<void> =
 
 // 1.6 Delete User
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = parseInt(req.params.id);
-
-    const userToDelete = await prisma.user.findUnique({ where: { id: userId } });
-    if (!userToDelete) {
-      res.status(404).json({ success: false, message: 'User not found' });
-      return;
-    }
-
-    await prisma.user.delete({
-      where: { id: userId }
-    });
-
-    await SystemLogger.log('USER_DELETED', `User ${userToDelete.name} (${userToDelete.email}) was permanently deleted by Administrator`);
-
-    res.status(200).json({
-      success: true,
-      message: 'User deleted successfully'
-    });
-  } catch (error: any) {
-    console.error('Error deleting user:', error);
-    if (error.code === 'P2003') {
-      res.status(400).json({ success: false, message: 'Cannot delete user because they have associated records (projects, tasks, comments, etc.).' });
-      return;
-    }
-    res.status(500).json({ success: false, message: 'Failed to delete user' });
-  }
+  res.status(403).json({
+    success: false,
+    message: 'User deletion is disabled. Users can only be deactivated.'
+  });
 };
 
 // 2. Update User Role

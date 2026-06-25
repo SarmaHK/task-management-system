@@ -294,168 +294,77 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        {/* Tabs navigation */}
-        <div className="flex border-b border-gray-100 mt-2">
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`py-3 px-6 font-bold text-[14px] border-b-2 transition-all cursor-pointer ${
-              activeTab === 'users'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            👤 Active Users
-          </button>
-          <button
-            onClick={() => setActiveTab('requests')}
-            className={`py-3 px-6 font-bold text-[14px] border-b-2 transition-all cursor-pointer relative ${
-              activeTab === 'requests'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            ✉️ Access Requests
-            {requests.length > 0 && activeTab !== 'requests' && (
-              <span className="ml-2 bg-rose-500 text-white rounded-full px-2 py-0.5 text-[10px] font-bold">
-                {requests.length}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {activeTab === 'users' ? (
-          /* Users Table Card */
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mt-1">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50 border-b border-gray-100 text-[11px] uppercase tracking-wider text-gray-400 font-bold">
-                    <th className="px-6 py-4">User Details</th>
-                    <th className="px-6 py-4">Role</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
+        {/* Users Table Card */}
+        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mt-1">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 border-b border-gray-100 text-[11px] uppercase tracking-wider text-gray-400 font-bold">
+                  <th className="px-6 py-4">User Details</th>
+                  <th className="px-6 py-4">Role</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-12 text-center text-gray-400 text-[14px] font-medium">Loading users...</td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan="4" className="px-6 py-12 text-center text-gray-400 text-[14px] font-medium">Loading users...</td>
-                    </tr>
-                  ) : users.length === 0 ? (
-                    <tr>
-                      <td colSpan="4" className="px-6 py-12 text-center text-gray-400 text-[14px] font-medium">No users found.</td>
-                    </tr>
-                  ) : (
-                    users.map((u) => (
-                      <tr key={u.id} className="hover:bg-gray-50/30 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-indigo-950 text-[14px]">{u.name}</div>
-                          <div className="text-gray-500 text-[13px]">{u.email}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <select
-                            value={u.role.id}
-                            onChange={(e) => handleRoleChange(u.id, parseInt(e.target.value))}
-                            disabled={!u.isActive} 
-                            className="text-[13px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 cursor-pointer focus:outline-none disabled:opacity-50"
+                ) : users.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-12 text-center text-gray-400 text-[14px] font-medium">No users found.</td>
+                  </tr>
+                ) : (
+                  users.map((u) => (
+                    <tr key={u.id} className="hover:bg-gray-50/30 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-indigo-950 text-[14px]">{u.name}</div>
+                        <div className="text-gray-500 text-[13px]">{u.email}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <select
+                          value={u.role.id}
+                          onChange={(e) => handleRoleChange(u.id, parseInt(e.target.value))}
+                          disabled={!u.isActive} 
+                          className="text-[13px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 cursor-pointer focus:outline-none disabled:opacity-50"
+                        >
+                          <option value={1}>Administrator</option>
+                          <option value={2}>Project Manager</option>
+                          <option value={3}>Collaborator</option>
+                        </select>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-[12px] font-bold px-2.5 py-1 rounded-full border ${u.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                          {u.isActive ? 'Active' : 'Deactivated'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {u.isActive ? (
+                          <button 
+                            onClick={() => handleDeactivate(u.id)}
+                            className="text-[13px] font-bold text-rose-600 hover:text-rose-800 transition-colors cursor-pointer"
                           >
-                            <option value={1}>Administrator</option>
-                            <option value={2}>Project Manager</option>
-                            <option value={3}>Collaborator</option>
-                          </select>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`text-[12px] font-bold px-2.5 py-1 rounded-full border ${u.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
-                            {u.isActive ? 'Active' : 'Deactivated'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          {u.isActive ? (
+                            Deactivate
+                          </button>
+                        ) : (
+                          <div className="flex items-center justify-end gap-3">
                             <button 
-                              onClick={() => handleDeactivate(u.id)}
-                              className="text-[13px] font-bold text-rose-600 hover:text-rose-800 transition-colors cursor-pointer"
+                              onClick={() => handleActivate(u.id)}
+                              className="text-[13px] font-bold text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer"
                             >
-                              Deactivate
-                            </button>
-                          ) : (
-                            <div className="flex items-center justify-end gap-3">
-                              <button 
-                                onClick={() => handleActivate(u.id)}
-                                className="text-[13px] font-bold text-emerald-600 hover:text-emerald-800 transition-colors cursor-pointer"
-                              >
-                                Activate
-                              </button>
-                              <button 
-                                onClick={() => handleDelete(u.id)}
-                                className="text-[13px] font-bold text-gray-500 hover:text-rose-600 transition-colors cursor-pointer"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          /* Access Requests Card */
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mt-1 animate-fadeUp">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50 border-b border-gray-100 text-[11px] uppercase tracking-wider text-gray-400 font-bold">
-                    <th className="px-6 py-4">Requester Details</th>
-                    <th className="px-6 py-4">Submitted Date</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {requestsLoading ? (
-                    <tr>
-                      <td colSpan="3" className="px-6 py-12 text-center text-gray-400 text-[14px] font-medium">Loading requests...</td>
-                    </tr>
-                  ) : requests.length === 0 ? (
-                    <tr>
-                      <td colSpan="3" className="px-6 py-12 text-center text-gray-400 text-[14px] font-medium">No pending access requests.</td>
-                    </tr>
-                  ) : (
-                    requests.map((r) => (
-                      <tr key={r.id} className="hover:bg-gray-50/30 transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-indigo-950 text-[14px]">{r.name}</div>
-                          <div className="text-gray-500 text-[13px]">{r.email}</div>
-                        </td>
-                        <td className="px-6 py-4 text-gray-500 text-[13px] font-medium">
-                          {new Date(r.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })} @ {new Date(r.createdAt).toLocaleTimeString(undefined, { timeStyle: 'short' })}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2.5">
-                            <button
-                              onClick={() => openApproveModal(r)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-bold px-3.5 py-1.5 rounded-xl cursor-pointer shadow-sm transition-all"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRejectRequest(r.id)}
-                              className="bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 text-[13px] font-bold px-3.5 py-1.5 rounded-xl cursor-pointer transition-all"
-                            >
-                              Reject
+                              Activate
                             </button>
                           </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+        </div>
 
         {/* Create User Modal */}
         {isModalOpen && (
@@ -536,25 +445,10 @@ export default function AdminUsers() {
                       <span className="text-gray-500 font-medium">Email: </span>
                       <strong className="text-indigo-950">{createdCredentials.email}</strong>
                     </div>
-                    <div className="text-[13.5px] bg-indigo-50 border border-indigo-100 p-2.5 rounded-lg mt-1.5 flex justify-between items-center">
-                      <div>
-                        <span className="text-gray-500 text-[12px] block">Temporary Password:</span>
-                        <code className="text-indigo-700 font-bold text-[14px]">{createdCredentials.tempPassword}</code>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(createdCredentials.tempPassword);
-                          alert('Password copied to clipboard!');
-                        }}
-                        className="text-[12px] bg-white border border-indigo-200 text-indigo-700 font-bold px-2 py-1 rounded hover:bg-indigo-50 cursor-pointer"
-                      >
-                        Copy
-                      </button>
-                    </div>
                   </div>
 
                   <div className="text-[11.5px] text-gray-400 text-center leading-relaxed">
-                    Note: An onboarding notification email copy containing these credentials has also been logged to the server logs.
+                    Note: An onboarding email has been sent to the user with their login details and temporary password.
                   </div>
 
                   <button

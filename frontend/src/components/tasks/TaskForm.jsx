@@ -74,7 +74,7 @@ export default function TaskForm({
 
     // 1. Add current project members (any role)
     projectMembers.forEach((m) => {
-      if (m.user) {
+      if (m.user && m.user.status === 'ACTIVE') {
         map.set(m.userId, {
           userId: m.userId,
           name: m.user.name,

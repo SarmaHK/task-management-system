@@ -232,11 +232,18 @@ export default function TaskDetails() {
                 {task.assignees && task.assignees.length > 0 ? (
                   <div className="flex flex-col gap-1.5">
                     {task.assignees.map((a) => (
-                      <div key={a.id} className="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-lg p-2">
+                      <div key={a.id} className={`flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-lg p-2 ${a.user?.status === 'INACTIVE' ? 'opacity-60' : ''}`}>
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-[10px] font-extrabold flex items-center justify-center">
                           {a.user?.name?.charAt(0).toUpperCase()}
                         </div>
-                        <span className="text-[12.5px] font-bold text-indigo-950 truncate">{a.user?.name}</span>
+                        <span className="text-[12.5px] font-bold text-indigo-950 truncate">
+                          {a.user?.name}
+                          {a.user?.status === 'INACTIVE' && (
+                            <span className="text-[9.5px] font-bold text-gray-400 bg-gray-200/60 px-1.5 py-0.5 rounded ml-1.5">
+                              Inactive
+                            </span>
+                          )}
+                        </span>
                       </div>
                     ))}
                   </div>

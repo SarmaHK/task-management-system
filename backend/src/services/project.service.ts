@@ -53,7 +53,7 @@ export class ProjectService {
         where: { isDeleted: false },
         include: {
           owner: { select: { id: true, name: true, email: true } },
-          members: { include: { user: { select: { id: true, name: true, email: true } } } },
+          members: { include: { user: { select: { id: true, name: true, email: true, status: true } } } },
         },
       });
     }
@@ -69,7 +69,7 @@ export class ProjectService {
       },
       include: {
         owner: { select: { id: true, name: true, email: true } },
-        members: { include: { user: { select: { id: true, name: true, email: true } } } },
+        members: { include: { user: { select: { id: true, name: true, email: true, status: true } } } },
       },
     });
   }
@@ -80,7 +80,7 @@ export class ProjectService {
       where: { id: projectId, isDeleted: false },
       include: {
         owner: { select: { id: true, name: true, email: true } },
-        members: { include: { user: { select: { id: true, name: true, email: true } } } },
+        members: { include: { user: { select: { id: true, name: true, email: true, status: true } } } },
         tasks: {
           include: {
             assignees: { include: { user: { select: { id: true, name: true } } } },

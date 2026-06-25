@@ -23,6 +23,7 @@ import Projects from '../pages/projects/Projects';
 import ProjectDetails from '../pages/projects/ProjectDetails';
 import Messages from '../pages/Messages';
 import Calendar from '../pages/Calendar';
+import Settings from '../pages/Settings';
 
 // ── Auth guard wrapper ────────────────────────────────────────────────────
 function RequireAuth({ children, allowedRoles }) {
@@ -177,6 +178,16 @@ export default function AppRoutes() {
         element={
           <RequireAuth allowedRoles={NON_ADMIN_ROLES}>
             <Calendar />
+          </RequireAuth>
+        }
+      />
+
+      {/* Settings */}
+      <Route
+        path="/settings"
+        element={
+          <RequireAuth allowedRoles={ALL_ROLES}>
+            <Settings />
           </RequireAuth>
         }
       />

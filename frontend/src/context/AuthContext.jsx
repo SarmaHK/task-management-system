@@ -188,6 +188,49 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Update user profile name
+  const updateProfile = async (name) => {
+    if (!accessToken) throw new Error('Unauthenticated');
+    try {
+      const response = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name }),
+      });
+
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.message || 'Profile update failed');
+      }
+
+      // Update local user state
+      setUser(prev => prev ? { ...prev, name: resData.data.user.name } : null);
+      return resData;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Change user password
+  const changePassword = async (currentPassword, newPassword) => {
+    if (!accessToken) throw new Error('Unauthenticated');
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.message || 'Password update failed');
+      }
+      return resData;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const value = {
     user,
     accessToken,
@@ -196,6 +239,8 @@ export function AuthProvider({ children }) {
     register,
     logout,
     firstLoginReset,
+    updateProfile,
+    changePassword,
     getAuthHeaders,
   };
 

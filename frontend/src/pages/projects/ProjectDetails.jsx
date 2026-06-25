@@ -91,6 +91,7 @@ export default function ProjectDetails() {
 
   const isProjectOwner = user?.role === 'PROJECT_MANAGER' && project?.owner?.id === user?.id;
   const canCreateTask = user?.role === 'PROJECT_MANAGER' && project?.members?.some(m => m.userId === user?.id);
+  const activeMembers = project?.members ? project.members.filter(m => m.user?.status === 'ACTIVE') : [];
 
   useEffect(() => {
     if (!isProjectOwner) return;
@@ -290,11 +291,11 @@ export default function ProjectDetails() {
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 flex flex-col gap-4">
               <div className="border-b border-gray-50 pb-3 flex justify-between items-center">
                 <h3 className="text-[15px] font-bold text-indigo-950">Project Members</h3>
-                <span className="text-[12px] text-indigo-600 font-bold">({project.members.length})</span>
+                <span className="text-[12px] text-indigo-600 font-bold">({activeMembers.length})</span>
               </div>
 
               <div className="flex flex-col gap-3">
-                {project.members.map((m) => (
+                {activeMembers.map((m) => (
                   <div key={m.id} className="flex justify-between items-center gap-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 text-indigo-700 font-bold text-[12px] flex items-center justify-center flex-shrink-0">
@@ -318,6 +319,9 @@ export default function ProjectDetails() {
                     )}
                   </div>
                 ))}
+                {activeMembers.length === 0 && (
+                  <p className="text-[12px] text-gray-400 italic">No active members found.</p>
+                )}
               </div>
 
               {/* Add Member Form (Admins & Owners only) */}
