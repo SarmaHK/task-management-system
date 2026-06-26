@@ -476,6 +476,28 @@ export class TaskService {
       },
     });
 
+    // 11. Notify all project members about the task update
+    try {
+      const projectWithMembers = await prisma.project.findUnique({
+        where: { id: task.projectId },
+        include: { members: true },
+      });
+
+      if (projectWithMembers) {
+        for (const member of projectWithMembers.members) {
+          if (member.userId !== userId) {
+            await SocketService.sendNotification(member.userId, {
+              message: `Task "${updatedTask.title}" has been updated`,
+              type: 'ADMIN_UPDATE',
+              taskId: updatedTask.id,
+            });
+          }
+        }
+      }
+    } catch (notifErr) {
+      console.error('[Notification Error] Failed to send task update notifications:', notifErr);
+    }
+
     return updatedTask;
   }
 
@@ -505,7 +527,28 @@ export class TaskService {
       }
     }
 
-    // 4. Delete the task (Dependent rows in other tables will cascade delete via DB constraint)
+    // 4. Notify all project members about task deletion
+    try {
+      const projectWithMembers = await prisma.project.findUnique({
+        where: { id: task.projectId },
+        include: { members: true },
+      });
+
+      if (projectWithMembers) {
+        for (const member of projectWithMembers.members) {
+          if (member.userId !== userId) {
+            await SocketService.sendNotification(member.userId, {
+              message: `Task "${task.title}" was deleted by ${userRole}`,
+              type: 'ADMIN_UPDATE',
+            });
+          }
+        }
+      }
+    } catch (notifErr) {
+      console.error('[Notification Error] Failed to send task delete notifications:', notifErr);
+    }
+
+    // 5. Delete the task (Dependent rows in other tables will cascade delete via DB constraint)
     await prisma.task.delete({ where: { id: taskId } });
   }
 

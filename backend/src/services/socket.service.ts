@@ -132,6 +132,12 @@ export class SocketService {
     }
   }
 
+  public static broadcastToProject(projectId: number | string, event: string, data: any): void {
+    if (this.io) {
+      this.io.to(`project_${projectId}`).emit(event, data);
+    }
+  }
+
   public static disconnectUser(userId: number): void {
     const socketIds = this.userSockets.get(userId);
     if (socketIds && this.io) {

@@ -16,10 +16,9 @@ export default function ProjectDetails() {
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Member Form state
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedRole, setSelectedRole] = useState('COLLABORATOR');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [dropdownSearch, setDropdownSearch] = useState('');
 
   const fetchProjectData = async () => {
     try {
@@ -52,12 +51,12 @@ export default function ProjectDetails() {
     try {
       const res = await projectService.addProjectMember(parseInt(id), {
         userId: parseInt(selectedUserId),
-        role: selectedRole,
+        role: 'COLLABORATOR',
       });
 
       if (res.success) {
         setSelectedUserId('');
-        setSelectedRole('COLLABORATOR');
+        setDropdownSearch('');
         fetchProjectData();
       }
     } catch (err) {
@@ -95,24 +94,20 @@ export default function ProjectDetails() {
 
   useEffect(() => {
     if (!isProjectOwner) return;
-    if (searchQuery.trim().length < 2) {
-      setAllUsers([]);
-      return;
-    }
 
-    const delayDebounceFn = setTimeout(async () => {
+    const fetchCollaborators = async () => {
       try {
-        const res = await projectService.getSearchableUsers(searchQuery);
+        const res = await projectService.getSearchableUsers('');
         if (res.success) {
           setAllUsers(res.data);
         }
       } catch (err) {
-        console.error('Error searching users:', err);
+        console.error('Error fetching collaborators:', err);
       }
-    }, 300);
+    };
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, isProjectOwner]);
+    fetchCollaborators();
+  }, [isProjectOwner]);
 
   if (loading) {
     return (
@@ -329,54 +324,64 @@ export default function ProjectDetails() {
                 <form onSubmit={handleAddMember} className="border-t border-gray-50 pt-4 flex flex-col gap-3">
                   <h4 className="text-[13px] font-bold text-indigo-950">Link Team Member</h4>
                   
-                  <div>
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Search User (Type &gt;= 2 chars)</label>
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Type name or email..."
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
-                    />
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Select User</label>
-                    <select
-                      required
-                      value={selectedUserId}
-                      onChange={(e) => setSelectedUserId(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  <div className="relative">
+                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Select Collaborator</label>
+                    <div 
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[13px] bg-white cursor-pointer flex justify-between items-center"
                     >
-                      {searchQuery.trim().length < 2 ? (
-                        <option value="">-- Type search query above --</option>
-                      ) : allUsers.length === 0 ? (
-                        <option value="">No matching users found</option>
-                      ) : (
-                        <>
-                          <option value="">-- Choose User --</option>
+                      <span className={selectedUserId ? 'text-indigo-950 font-semibold' : 'text-gray-400'}>
+                        {selectedUserId 
+                          ? allUsers.find(u => u.id === parseInt(selectedUserId))?.name || 'Unknown User' 
+                          : '-- Choose Collaborator --'}
+                      </span>
+                      <span className="text-gray-400 text-[10px]">▼</span>
+                    </div>
+
+                    {isDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden flex flex-col">
+                        <div className="p-2 border-b border-gray-100 bg-gray-50/50">
+                          <input
+                            type="text"
+                            autoFocus
+                            placeholder="Search name or email..."
+                            value={dropdownSearch}
+                            onChange={(e) => setDropdownSearch(e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
                           {allUsers
                             .filter(u => !project.members.some(pm => pm.userId === u.id))
+                            .filter(u => 
+                              u.name.toLowerCase().includes(dropdownSearch.toLowerCase()) || 
+                              u.email.toLowerCase().includes(dropdownSearch.toLowerCase())
+                            )
                             .map(u => (
-                              <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                              <div 
+                                key={u.id}
+                                onClick={() => {
+                                  setSelectedUserId(u.id);
+                                  setIsDropdownOpen(false);
+                                  setDropdownSearch('');
+                                }}
+                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-0"
+                              >
+                                <div className="font-bold text-indigo-950 text-[13px]">{u.name}</div>
+                                <div className="text-[11px] text-gray-500">{u.email}</div>
+                              </div>
                             ))}
-                        </>
-                      )}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Project Role</label>
-                    <select
-                      value={selectedRole}
-                      onChange={(e) => setSelectedRole(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                    >
-                      <option value="COLLABORATOR">Collaborator</option>
-                      <option value="PROJECT_MANAGER">Project Manager</option>
-                    </select>
+                          {allUsers.filter(u => !project.members.some(pm => pm.userId === u.id)).length === 0 && (
+                            <div className="px-3 py-4 text-center text-[12px] text-gray-500 italic">No available collaborators found.</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[12px] font-bold cursor-pointer"
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[12px] font-bold cursor-pointer mt-1"
                   >
                     + Add to Workspace
                   </button>

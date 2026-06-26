@@ -244,14 +244,32 @@ export class AuthController {
   }
 
   /**
-   * Reset password flow using a valid token
+   * Verify OTP
+   */
+  public static async verifyOTP(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, otp } = req.body;
+      await AuthService.verifyOTP(email, otp);
+
+      res.status(200).json({
+        success: true,
+        message: 'Verification code is valid',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Reset password flow using a valid OTP
    */
   public static async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { token, newPassword } = req.body;
+      const { email, otp, newPassword } = req.body;
 
       await AuthService.resetPassword({
-        token,
+        email,
+        otp,
         newPassword,
       });
 
