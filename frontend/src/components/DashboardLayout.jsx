@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import NotificationPanel from './NotificationPanel';
 import api from '../services/api';
-import { subscribeToNotifications } from '../services/socket';
+import { subscribeToNotifications, getSocket } from '../services/socket';
+import projectService from '../services/projectService';
 
 const NAV_ITEMS = [
   {
@@ -21,6 +22,15 @@ const NAV_ITEMS = [
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+      </svg>
+    ),
+  },
+  {
+    to: '/admin/reports',
+    label: 'Reports',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     ),
   },
@@ -73,7 +83,9 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+
   {
+<<<<<<< HEAD
     to: '#reports',
     label: 'Reports',
     excludeRoles: ['COLLABORATOR', 'PROJECT_MANAGER'],
@@ -85,6 +97,9 @@ const NAV_ITEMS = [
   },
   {
     to: '#settings', // Placeholder
+=======
+    to: '/settings',
+>>>>>>> f9b1ce8e8fd2292944cfe997d2abd7af02f93996
     label: 'Settings',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -102,6 +117,13 @@ export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [hasNewMessage, setHasNewMessage] = useState(false);
+
+  useEffect(() => {
+    if (location.pathname === '/messages') {
+      setHasNewMessage(false);
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!user) return;
@@ -121,8 +143,37 @@ export default function DashboardLayout({ children }) {
       setNotifications((prev) => [newNotif, ...prev]);
     });
 
+    const socket = getSocket();
+    if (socket) {
+      const setupGlobalMessaging = async () => {
+        try {
+          const res = await projectService.getAllProjects();
+          if (res.success) {
+            res.data.forEach(p => socket.emit('joinProject', p.id));
+          }
+        } catch (err) {
+          console.error('Failed to setup global messaging:', err);
+        }
+      };
+      setupGlobalMessaging();
+
+      const handleGlobalMessage = (msg) => {
+        // If the message is from the current user, don't show the dot
+        if (msg.sender?.id === user.id) return;
+        if (location.pathname !== '/messages') {
+          setHasNewMessage(true);
+        }
+      };
+      socket.on('receiveMessage', handleGlobalMessage);
+
+      return () => {
+        unsubscribe();
+        socket.off('receiveMessage', handleGlobalMessage);
+      };
+    }
+
     return () => unsubscribe();
-  }, [user]);
+  }, [user, location.pathname]);
 
   const handleMarkAsRead = async (id) => {
     try {
@@ -168,14 +219,19 @@ export default function DashboardLayout({ children }) {
     return (
       <button
         onClick={() => { if(!item.to.startsWith('#')) navigate(item.to); setSidebarOpen(false); }}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer text-left ${
+        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer text-left ${
           active
             ? 'bg-blue-600/10 text-blue-500'
             : 'text-gray-400 hover:bg-slate-800 hover:text-gray-100'
         }`}
       >
-        <span className={active ? 'text-blue-500' : 'text-gray-400'}>{item.icon}</span>
-        {item.label}
+        <div className="flex items-center gap-3">
+          <span className={active ? 'text-blue-500' : 'text-gray-400'}>{item.icon}</span>
+          {item.label}
+        </div>
+        {item.label === 'Messages' && hasNewMessage && (
+          <span className="w-2 h-2 rounded-full bg-blue-500 mr-2 shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
+        )}
       </button>
     );
   };

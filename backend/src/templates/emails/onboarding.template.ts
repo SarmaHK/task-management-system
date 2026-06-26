@@ -3,7 +3,7 @@ export const getOnboardingEmailTemplate = (
   email: string,
   role: string,
   tempPassword: string,
-  loginUrl: string = 'http://localhost:5173/login'
+  loginUrl: string = 'http://localhost:5173/login?forceLogin=true'
 ): string => {
   return `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #374151; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">

@@ -49,6 +49,7 @@ export class AttachmentService {
         where: { projectId, userId }
       });
       if (!isMember) {
+
         throw new AppError('Access forbidden: You are not a member of this project', 403);
       }
     } else {
@@ -141,7 +142,7 @@ export class AttachmentService {
     return prisma.attachment.findMany({
       where: { taskId },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, status: true } },
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -166,7 +167,7 @@ export class AttachmentService {
     return prisma.attachment.findMany({
       where: { projectId },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, status: true } },
       },
       orderBy: { createdAt: 'desc' }
     });

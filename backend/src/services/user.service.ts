@@ -62,7 +62,7 @@ export class UserService {
     // Send a welcome notification via sockets
     SocketService.sendNotification(newUser.id, {
       type: 'ADMIN_UPDATE',
-      message: 'Your account has been created successfully. Welcome aboard!'
+      message: 'Welcome to TaskFlow! Your account has been created successfully. Welcome aboard!'
     }).catch(err => console.error('[SOCKET ERROR] Failed to send welcome notification:', err));
 
     return {

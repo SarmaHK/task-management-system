@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { prisma } from '../config/database'; 
+import { prisma } from '../config/database';
 import bcrypt from 'bcryptjs';
 import { io } from '../server';
 import { SystemLogger } from '../utils/logger';
@@ -8,6 +8,9 @@ import { SocketService } from '../services/socket.service';
 import { UserService } from '../services/user.service';
 import { createUserSchema } from '../validators/user.validator';
 import { z } from 'zod';
+import { EmailService } from '../services/email.service';
+import { getActivationEmailTemplate } from '../templates/emails/activation.template';
+import { getDeactivationEmailTemplate } from '../templates/emails/deactivation.template';
 
 const mapRoleIdToEnum = (roleId: any): Role => {
   const rid = parseInt(roleId);
@@ -26,6 +29,14 @@ export const deactivateUser = async (req: Request, res: Response): Promise<void>
       data: { status: UserStatus.INACTIVE }
     });
 
+    // Remove user from all projects and task assignments
+    await prisma.projectMember.deleteMany({
+      where: { userId: updatedUser.id }
+    });
+    await prisma.taskAssignment.deleteMany({
+      where: { userId: updatedUser.id }
+    });
+
     // Log administrative action
     await SystemLogger.log('USER_DISABLED', `User ${updatedUser.name} (${updatedUser.email}) was deactivated by Administrator`);
 
@@ -38,7 +49,17 @@ export const deactivateUser = async (req: Request, res: Response): Promise<void>
     await SocketService.sendNotification(userId, {
       message: 'Your account has been deactivated by an administrator. You will be logged out shortly.',
       type: 'ADMIN_UPDATE',
+
     });
+
+    // Send deactivation email
+    await EmailService.sendEmail({
+      to: updatedUser.email,
+      subject: 'Account Deactivated',
+      text: `Hello ${updatedUser.name},\n\nYour account has been deactivated by an Administrator. If you believe this is a mistake, please contact support.`,
+      html: getDeactivationEmailTemplate(updatedUser.name)
+    }).catch(err => console.error('Failed to send deactivation email:', err));
+
     res.status(200).json({
       success: true,
       message: 'User deactivated successfully',
@@ -69,6 +90,14 @@ export const activateUser = async (req: Request, res: Response): Promise<void> =
       message: 'Your account has been activated by an Administrator.'
     });
 
+    // Send activation email
+    await EmailService.sendEmail({
+      to: updatedUser.email,
+      subject: 'Account Activated',
+      text: `Hello ${updatedUser.name},\n\nYour account has been activated by an Administrator. You can use your previous password with your email to log in.`,
+      html: getActivationEmailTemplate(updatedUser.name)
+    }).catch(err => console.error('Failed to send activation email:', err));
+
     res.status(200).json({
       success: true,
       message: 'User activated successfully',
@@ -82,33 +111,10 @@ export const activateUser = async (req: Request, res: Response): Promise<void> =
 
 // 1.6 Delete User
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = parseInt(req.params.id);
-
-    const userToDelete = await prisma.user.findUnique({ where: { id: userId } });
-    if (!userToDelete) {
-      res.status(404).json({ success: false, message: 'User not found' });
-      return;
-    }
-
-    await prisma.user.delete({
-      where: { id: userId }
-    });
-
-    await SystemLogger.log('USER_DELETED', `User ${userToDelete.name} (${userToDelete.email}) was permanently deleted by Administrator`);
-
-    res.status(200).json({
-      success: true,
-      message: 'User deleted successfully'
-    });
-  } catch (error: any) {
-    console.error('Error deleting user:', error);
-    if (error.code === 'P2003') {
-      res.status(400).json({ success: false, message: 'Cannot delete user because they have associated records (projects, tasks, comments, etc.).' });
-      return;
-    }
-    res.status(500).json({ success: false, message: 'Failed to delete user' });
-  }
+  res.status(403).json({
+    success: false,
+    message: 'User deletion is disabled. Users can only be deactivated.'
+  });
 };
 
 // 2. Update User Role
@@ -275,18 +281,25 @@ export const getSearchableUsers = async (req: Request, res: Response): Promise<v
 
     const searchTerm = String(search || '').trim();
 
+    // Enforce constraints: search must be at least 2 characters
+    if (searchTerm.length < 2) {
+      res.status(200).json({
+        success: true,
+        data: []
+      });
+      return;
+    }
+
     const takeVal = Math.min(parseInt(String(limit || '20'), 10), 50);
     const skipVal = Math.max(parseInt(String(offset || '0'), 10), 0);
 
     const users = await prisma.user.findMany({
       where: {
         status: UserStatus.ACTIVE,
-        ...(searchTerm ? {
-          OR: [
-            { name: { contains: searchTerm, mode: 'insensitive' } },
-            { email: { contains: searchTerm, mode: 'insensitive' } }
-          ]
-        } : {})
+        OR: [
+          { name: { contains: searchTerm, mode: 'insensitive' } },
+          { email: { contains: searchTerm, mode: 'insensitive' } }
+        ]
       },
       select: {
         id: true,

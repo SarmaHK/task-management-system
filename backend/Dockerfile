@@ -44,6 +44,9 @@ COPY --from=builder /app/src ./src
 # Use unprivileged node user
 USER node
 
+# Use unprivileged node user
+USER node
+
 EXPOSE 5000
 
 CMD ["npm", "start"]

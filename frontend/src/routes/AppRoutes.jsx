@@ -3,6 +3,7 @@
  */
 
 import AdminUsers from '../pages/AdminUsers';
+import ReportGenerator from '../pages/admin/ReportGenerator';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -10,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 // Auth pages
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import ForgotPassword from '../pages/ForgotPassword';
 import ForceResetPassword from '../pages/ForceResetPassword';
 
 // Protected pages
@@ -23,6 +25,7 @@ import Projects from '../pages/projects/Projects';
 import ProjectDetails from '../pages/projects/ProjectDetails';
 import Messages from '../pages/Messages';
 import Calendar from '../pages/Calendar';
+import Settings from '../pages/Settings';
 
 // ── Auth guard wrapper ────────────────────────────────────────────────────
 function RequireAuth({ children, allowedRoles }) {
@@ -54,11 +57,24 @@ function RequireAuth({ children, allowedRoles }) {
   return children;
 }
 
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+
 // ── Redirect if already logged in ─────────────────────────────────────────
 function PublicOnly({ children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
+  const location = useLocation();
+  const forceLogin = new URLSearchParams(location.search).get('forceLogin');
+
+  useEffect(() => {
+    if (forceLogin && user) {
+      logout();
+    }
+  }, [forceLogin, user, logout]);
+
   if (loading) return null;
-  if (user && !user.firstLogin) {
+  
+  if (user && !user.firstLogin && !forceLogin) {
     if (user.role === 'ADMIN') {
       return <Navigate to="/admin/users" replace />;
     }
@@ -79,6 +95,7 @@ export default function AppRoutes() {
       {/* Public auth routes */}
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
       <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
+      <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
       <Route path="/setup-password" element={<ForceResetPassword />} />
 
       {/* ── Protected routes ── */}
@@ -142,6 +159,14 @@ export default function AppRoutes() {
           </RequireAuth>
         } 
       />
+      <Route 
+        path="/admin/reports" 
+        element={
+          <RequireAuth allowedRoles={['ADMIN']}>
+            <ReportGenerator />
+          </RequireAuth>
+        } 
+      />
 
       {/* Project routes */}
       <Route
@@ -177,6 +202,16 @@ export default function AppRoutes() {
         element={
           <RequireAuth allowedRoles={NON_ADMIN_ROLES}>
             <Calendar />
+          </RequireAuth>
+        }
+      />
+
+      {/* Settings */}
+      <Route
+        path="/settings"
+        element={
+          <RequireAuth allowedRoles={ALL_ROLES}>
+            <Settings />
           </RequireAuth>
         }
       />

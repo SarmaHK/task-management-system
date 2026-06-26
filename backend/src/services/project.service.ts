@@ -53,7 +53,7 @@ export class ProjectService {
         where: { isDeleted: false },
         include: {
           owner: { select: { id: true, name: true, email: true } },
-          members: { include: { user: { select: { id: true, name: true, email: true } } } },
+          members: { include: { user: { select: { id: true, name: true, email: true, status: true } } } },
         },
       });
     }
@@ -69,7 +69,7 @@ export class ProjectService {
       },
       include: {
         owner: { select: { id: true, name: true, email: true } },
-        members: { include: { user: { select: { id: true, name: true, email: true } } } },
+        members: { include: { user: { select: { id: true, name: true, email: true, status: true } } } },
       },
     });
   }
@@ -80,7 +80,7 @@ export class ProjectService {
       where: { id: projectId, isDeleted: false },
       include: {
         owner: { select: { id: true, name: true, email: true } },
-        members: { include: { user: { select: { id: true, name: true, email: true } } } },
+        members: { include: { user: { select: { id: true, name: true, email: true, status: true } } } },
         tasks: {
           include: {
             assignees: { include: { user: { select: { id: true, name: true } } } },
@@ -184,7 +184,11 @@ export class ProjectService {
 
     for (const member of members) {
       await SocketService.sendNotification(member.userId, {
-        message: `Project "${updatedProject.name}" was updated`,
+        message: data.status === 'ARCHIVED' 
+          ? `Project "${updatedProject.name}" was archived`
+          : data.status === 'COMPLETED'
+          ? `Project "${updatedProject.name}" was marked as completed`
+          : `Project "${updatedProject.name}" was updated`,
         type: 'PROJECT_UPDATED',
       });
     }
@@ -241,6 +245,38 @@ export class ProjectService {
       type: 'PROJECT_MEMBER_ADDED',
     });
 
+    // Notify ALL OTHER members about the new collaborator
+    try {
+      const allMembers = await prisma.projectMember.findMany({ where: { projectId } });
+      for (const m of allMembers) {
+        if (m.userId !== userIdToLink && m.userId !== userId) {
+          await SocketService.sendNotification(m.userId, {
+            message: `${targetUser.name} has joined the project "${project.name}"`,
+            type: 'PROJECT_UPDATED',
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.error('Failed to notify team of new member:', notifErr);
+    }
+
+    // Send an automatic welcome message in the project chat
+    try {
+      const welcomeMessage = await prisma.message.create({
+        data: {
+          projectId,
+          senderId: userId,
+          content: `Welcome to the team, ${targetUser.name}! Let's do great work together! 🚀`
+        },
+        include: {
+          sender: { select: { id: true, name: true, email: true, role: true } }
+        }
+      });
+      SocketService.broadcastToProject(projectId, 'receiveMessage', welcomeMessage);
+    } catch (msgErr) {
+      console.error('Failed to send welcome message:', msgErr);
+    }
+
     return projectMember;
   }
 
@@ -262,6 +298,7 @@ export class ProjectService {
 
     const member = await prisma.projectMember.findFirst({
       where: { id: memberIdToRemove, projectId },
+      include: { user: true },
     });
 
     if (!member) {
@@ -273,9 +310,49 @@ export class ProjectService {
       throw new AppError('Cannot remove the project owner from project members', 400);
     }
 
-    return prisma.projectMember.delete({
+    const deletedMember = await prisma.projectMember.delete({
       where: { id: memberIdToRemove },
     });
+
+    // Notify the removed member
+    await SocketService.sendNotification(deletedMember.userId, {
+      message: `You have been removed from project "${project.name}"`,
+      type: 'PROJECT_UPDATED',
+    });
+
+    // Notify ALL OTHER members about the removed collaborator
+    try {
+      const remainingMembers = await prisma.projectMember.findMany({ where: { projectId } });
+      for (const m of remainingMembers) {
+        if (m.userId !== userId) {
+          await SocketService.sendNotification(m.userId, {
+            message: `${member.user.name} was removed from the project "${project.name}"`,
+            type: 'PROJECT_UPDATED',
+          });
+        }
+      }
+    } catch (notifErr) {
+      console.error('Failed to notify team of removed member:', notifErr);
+    }
+
+    // Send an automatic message in the project chat
+    try {
+      const removalMessage = await prisma.message.create({
+        data: {
+          projectId,
+          senderId: userId,
+          content: `${member.user.name} has been removed from the workspace.`
+        },
+        include: {
+          sender: { select: { id: true, name: true, email: true, role: true } }
+        }
+      });
+      SocketService.broadcastToProject(projectId, 'receiveMessage', removalMessage);
+    } catch (msgErr) {
+      console.error('Failed to send removal message:', msgErr);
+    }
+
+    return deletedMember;
   }
 
   // ─── GET PROJECT TASKS ───────────────────────────────

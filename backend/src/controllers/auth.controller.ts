@@ -154,6 +154,50 @@ export class AuthController {
   }
 
   /**
+   * Updates profile details of the current logged-in user (Protected Route)
+   */
+  public static async updateProfile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { name } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        throw new AppError('Unauthorized access', 401);
+      }
+
+      if (!name || !name.trim()) {
+        throw new AppError('Name is required', 400);
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { name: name.trim() },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          status: true,
+          mustChangePassword: true,
+        }
+      });
+
+      // Log activity
+      await SystemLogger.log('USER_PROFILE_UPDATED', `User ${updatedUser.email} updated profile name to: ${updatedUser.name}`);
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: {
+          user: updatedUser,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Changes the password of an authenticated user
    */
   public static async changePassword(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
@@ -200,14 +244,32 @@ export class AuthController {
   }
 
   /**
-   * Reset password flow using a valid token
+   * Verify OTP
+   */
+  public static async verifyOTP(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, otp } = req.body;
+      await AuthService.verifyOTP(email, otp);
+
+      res.status(200).json({
+        success: true,
+        message: 'Verification code is valid',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Reset password flow using a valid OTP
    */
   public static async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { token, newPassword } = req.body;
+      const { email, otp, newPassword } = req.body;
 
       await AuthService.resetPassword({
-        token,
+        email,
+        otp,
         newPassword,
       });
 

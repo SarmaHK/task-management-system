@@ -16,10 +16,9 @@ export default function ProjectDetails() {
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Member Form state
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedRole, setSelectedRole] = useState('COLLABORATOR');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [dropdownSearch, setDropdownSearch] = useState('');
 
   const fetchProjectData = async () => {
     try {
@@ -52,12 +51,12 @@ export default function ProjectDetails() {
     try {
       const res = await projectService.addProjectMember(parseInt(id), {
         userId: parseInt(selectedUserId),
-        role: selectedRole,
+        role: 'COLLABORATOR',
       });
 
       if (res.success) {
         setSelectedUserId('');
-        setSelectedRole('COLLABORATOR');
+        setDropdownSearch('');
         fetchProjectData();
       }
     } catch (err) {
@@ -91,23 +90,24 @@ export default function ProjectDetails() {
 
   const isProjectOwner = user?.role === 'PROJECT_MANAGER' && project?.owner?.id === user?.id;
   const canCreateTask = user?.role === 'PROJECT_MANAGER' && project?.members?.some(m => m.userId === user?.id);
+  const activeMembers = project?.members ? project.members.filter(m => m.user?.status === 'ACTIVE') : [];
 
   useEffect(() => {
     if (!isProjectOwner) return;
 
-    const delayDebounceFn = setTimeout(async () => {
+    const fetchCollaborators = async () => {
       try {
-        const res = await projectService.getSearchableUsers(searchQuery);
+        const res = await projectService.getSearchableUsers('');
         if (res.success) {
           setAllUsers(res.data);
         }
       } catch (err) {
-        console.error('Error searching users:', err);
+        console.error('Error fetching collaborators:', err);
       }
-    }, 300);
+    };
 
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, isProjectOwner]);
+    fetchCollaborators();
+  }, [isProjectOwner]);
 
   if (loading) {
     return (
@@ -286,11 +286,11 @@ export default function ProjectDetails() {
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 flex flex-col gap-4">
               <div className="border-b border-gray-50 pb-3 flex justify-between items-center">
                 <h3 className="text-[15px] font-bold text-indigo-950">Project Members</h3>
-                <span className="text-[12px] text-indigo-600 font-bold">({project.members.length})</span>
+                <span className="text-[12px] text-indigo-600 font-bold">({activeMembers.length})</span>
               </div>
 
               <div className="flex flex-col gap-3">
-                {project.members.map((m) => (
+                {activeMembers.map((m) => (
                   <div key={m.id} className="flex justify-between items-center gap-3">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 text-indigo-700 font-bold text-[12px] flex items-center justify-center flex-shrink-0">
@@ -314,6 +314,9 @@ export default function ProjectDetails() {
                     )}
                   </div>
                 ))}
+                {activeMembers.length === 0 && (
+                  <p className="text-[12px] text-gray-400 italic">No active members found.</p>
+                )}
               </div>
 
               {/* Add Member Form (Admins & Owners only) */}
@@ -321,6 +324,7 @@ export default function ProjectDetails() {
                 <form onSubmit={handleAddMember} className="border-t border-gray-50 pt-4 flex flex-col gap-3">
                   <h4 className="text-[13px] font-bold text-indigo-950">Link Team Member</h4>
                   
+<<<<<<< HEAD
                   <div>
                     <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Search User (Optional)</label>
                     <input
@@ -342,21 +346,75 @@ export default function ProjectDetails() {
                       ) : (
                         <>
                           <option value="">-- Choose User --</option>
+=======
+                  <div className="relative">
+                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Select Collaborator</label>
+                    <div 
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[13px] bg-white cursor-pointer flex justify-between items-center"
+                    >
+                      <span className={selectedUserId ? 'text-indigo-950 font-semibold' : 'text-gray-400'}>
+                        {selectedUserId 
+                          ? allUsers.find(u => u.id === parseInt(selectedUserId))?.name || 'Unknown User' 
+                          : '-- Choose Collaborator --'}
+                      </span>
+                      <span className="text-gray-400 text-[10px]">▼</span>
+                    </div>
+
+                    {isDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden flex flex-col">
+                        <div className="p-2 border-b border-gray-100 bg-gray-50/50">
+                          <input
+                            type="text"
+                            autoFocus
+                            placeholder="Search name or email..."
+                            value={dropdownSearch}
+                            onChange={(e) => setDropdownSearch(e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+>>>>>>> f9b1ce8e8fd2292944cfe997d2abd7af02f93996
                           {allUsers
                             .filter(u => !project.members.some(pm => pm.userId === u.id))
+                            .filter(u => 
+                              u.name.toLowerCase().includes(dropdownSearch.toLowerCase()) || 
+                              u.email.toLowerCase().includes(dropdownSearch.toLowerCase())
+                            )
                             .map(u => (
-                              <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                              <div 
+                                key={u.id}
+                                onClick={() => {
+                                  setSelectedUserId(u.id);
+                                  setIsDropdownOpen(false);
+                                  setDropdownSearch('');
+                                }}
+                                className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-0"
+                              >
+                                <div className="font-bold text-indigo-950 text-[13px]">{u.name}</div>
+                                <div className="text-[11px] text-gray-500">{u.email}</div>
+                              </div>
                             ))}
+<<<<<<< HEAD
                         </>
                       )}
                     </select>
                   </div>
 
 
+=======
+                          {allUsers.filter(u => !project.members.some(pm => pm.userId === u.id)).length === 0 && (
+                            <div className="px-3 py-4 text-center text-[12px] text-gray-500 italic">No available collaborators found.</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+>>>>>>> f9b1ce8e8fd2292944cfe997d2abd7af02f93996
 
                   <button
                     type="submit"
-                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[12px] font-bold cursor-pointer"
+                    className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[12px] font-bold cursor-pointer mt-1"
                   >
                     + Add to Workspace
                   </button>
