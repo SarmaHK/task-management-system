@@ -27,7 +27,7 @@ import { swaggerSpec } from './swagger';
 const app: Application = express();
 
 // Swagger Documentation (Must be before Helmet to prevent CSP issues)
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.min.css',
   customJs: [
     'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.min.js',
