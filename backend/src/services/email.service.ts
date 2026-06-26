@@ -91,7 +91,8 @@ ${options.text}
     tempPassword: string
   ): Promise<void> {
     const subject = 'Welcome to TaskFlow - Account Created!';
-    const text = `Hello ${name},\n\nYour account has been successfully created by the Administrator!\n\nYour credentials to sign in:\n- Login Page: http://localhost:5173/login\n- Username/Email: ${email}\n- Temporary Password: ${tempPassword}\n\nNote: On your first login, you will be required to reset this password.\n\nBest regards,\nTaskFlow Team`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const text = `Hello ${name},\n\nYour account has been successfully created by the Administrator!\n\nYour credentials to sign in:\n- Login Page: ${frontendUrl}/login\n- Username/Email: ${email}\n- Temporary Password: ${tempPassword}\n\nNote: On your first login, you will be required to reset this password.\n\nBest regards,\nTaskFlow Team`;
     const html = getOnboardingEmailTemplate(name, email, role, tempPassword);
 
     await this.sendEmail({
