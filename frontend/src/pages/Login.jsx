@@ -86,7 +86,7 @@ export default function Login() {
           {/* Form Content */}
           <div className="flex-1 flex flex-col justify-center px-10 sm:px-16 md:px-24">
             <div className="text-center mb-10">
-              <h1 className="text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">Welcome</h1>
+              <h1 className="text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">Welcome!</h1>
               <p className="text-gray-500 font-medium">Welcome to TaskFlow Workspace</p>
             </div>
 
