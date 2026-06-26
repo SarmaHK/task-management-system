@@ -58,6 +58,7 @@ export function AuthProvider({ children }) {
     try {
       const response = await fetch('/api/auth/refresh-token', {
         method: 'POST',
+        credentials: 'include',
       });
       const data = await response.json();
       if (data.success && data.data?.token) {
@@ -149,7 +150,7 @@ export function AuthProvider({ children }) {
   // Logout action
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch (error) {
       console.error('Logout error on server:', error);
     } finally {
