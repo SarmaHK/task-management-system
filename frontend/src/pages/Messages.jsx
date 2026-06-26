@@ -55,8 +55,10 @@ export default function Messages() {
       socket.emit('joinProject', activeProject.id);
 
       const handleReceiveMessage = (msg) => {
-        setMessages((prev) => [...prev, msg]);
-        scrollToBottom();
+        if (msg.projectId === activeProject.id) {
+          setMessages((prev) => [...prev, msg]);
+          scrollToBottom();
+        }
       };
 
       socket.on('receiveMessage', handleReceiveMessage);

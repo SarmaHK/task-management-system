@@ -67,9 +67,32 @@ export class SocketService {
       });
 
       // --- Messaging System ---
-      socket.on('joinProject', (projectId: string | number) => {
-        socket.join(`project_${projectId}`);
-        console.log(`[WS] User ${userId} joined project_${projectId}`);
+      socket.on('joinProject', async (projectId: string | number) => {
+        try {
+          const user = await prisma.user.findUnique({ where: { id: userId } });
+          let hasAccess = false;
+          
+          if (user?.role === 'ADMIN') {
+            hasAccess = true;
+          } else {
+            const member = await prisma.projectMember.findFirst({
+              where: { projectId: Number(projectId), userId: userId }
+            });
+            const project = await prisma.project.findFirst({
+              where: { id: Number(projectId), ownerId: userId }
+            });
+            if (member || project) hasAccess = true;
+          }
+
+          if (hasAccess) {
+            socket.join(`project_${projectId}`);
+            console.log(`[WS] User ${userId} joined project_${projectId}`);
+          } else {
+            console.warn(`[WS] User ${userId} denied access to join project_${projectId}`);
+          }
+        } catch (error) {
+          console.error('[WS] Error joining project:', error);
+        }
       });
 
       socket.on('leaveProject', (projectId: string | number) => {
@@ -79,7 +102,26 @@ export class SocketService {
 
       socket.on('sendMessage', async (data: { projectId: number, content: string }) => {
         try {
-          // Verify user access (simplistic for socket, controller handles initial auth)
+          const user = await prisma.user.findUnique({ where: { id: userId } });
+          let hasAccess = false;
+          
+          if (user?.role === 'ADMIN') {
+            hasAccess = true;
+          } else {
+            const member = await prisma.projectMember.findFirst({
+              where: { projectId: data.projectId, userId: userId }
+            });
+            const project = await prisma.project.findFirst({
+              where: { id: data.projectId, ownerId: userId }
+            });
+            if (member || project) hasAccess = true;
+          }
+
+          if (!hasAccess) {
+            console.warn(`[WS] User ${userId} denied sending message to project_${data.projectId}`);
+            return;
+          }
+
           // Save message to DB
           const savedMessage = await prisma.message.create({
             data: {
