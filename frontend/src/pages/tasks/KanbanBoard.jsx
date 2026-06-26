@@ -85,6 +85,7 @@ export default function KanbanBoard() {
   const [isLoading, setIsLoading] = useState(true);
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [dragOverColumn, setDragOverColumn] = useState(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -199,26 +200,76 @@ export default function KanbanBoard() {
               </div>
             )}
 
-            {/* Filter Dropdown */}
-            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-xl px-3 py-2.5 border border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-200">
-              <svg className="w-4 h-4 text-[#118B95] dark:text-[#2AA7B3] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              <div className="relative">
-                <select
-                  value={selectedSource}
-                  onChange={(e) => setSelectedSource(e.target.value)}
-                  className="appearance-none pr-7 text-sm font-bold text-[#0D5A60] dark:text-[#E6F5F6] bg-transparent focus:outline-none cursor-pointer"
+            {/* Custom Filter Dropdown */}
+            <div className="relative z-30">
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-xl px-4 py-2.5 border border-gray-200 dark:border-slate-700 shadow-sm hover:border-[#118B95] dark:hover:border-[#2AA7B3] transition-colors duration-200"
+              >
+                <svg className="w-4 h-4 text-[#118B95] dark:text-[#2AA7B3] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                
+                <span className="text-sm font-bold text-[#0D5A60] dark:text-[#E6F5F6] whitespace-nowrap">
+                  {selectedSource === 'my-tasks' 
+                    ? 'My Assigned Tasks' 
+                    : projects.find(p => `project-${p.id}` === selectedSource)?.name || 'Project Tasks'}
+                </span>
+                
+                <svg 
+                  className={`w-4 h-4 text-[#118B95] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} 
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                 >
-                  <option value="my-tasks">My Assigned Tasks</option>
-                  {projects.map(p => (
-                    <option key={p.id} value={`project-${p.id}`}>{p.name}</option>
-                  ))}
-                </select>
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-[#118B95]">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                </div>
-              </div>
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
+              </button>
+
+              {/* Dropdown Menu Overlay & List */}
+              {isDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40 cursor-default" 
+                    onClick={() => setIsDropdownOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-100 dark:border-slate-700 overflow-hidden z-50 animate-scaleIn origin-top-right">
+                    <div className="max-h-60 overflow-y-auto py-1.5 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-slate-600">
+                      <button
+                        onClick={() => { setSelectedSource('my-tasks'); setIsDropdownOpen(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors ${
+                          selectedSource === 'my-tasks' 
+                            ? 'bg-[#E6F5F6] text-[#118B95] dark:bg-slate-700 dark:text-[#2AA7B3]' 
+                            : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50'
+                        }`}
+                      >
+                        My Assigned Tasks
+                      </button>
+                      
+                      {projects.length > 0 && (
+                        <div className="px-4 py-2 border-t border-gray-100 dark:border-slate-700/50 mt-1 mb-1">
+                          <span className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">Projects</span>
+                        </div>
+                      )}
+                      
+                      {projects.map(p => {
+                        const isSelected = selectedSource === `project-${p.id}`;
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => { setSelectedSource(`project-${p.id}`); setIsDropdownOpen(false); }}
+                            className={`w-full text-left px-4 py-2 text-sm font-medium transition-colors ${
+                              isSelected
+                                ? 'bg-[#E6F5F6] text-[#118B95] dark:bg-slate-700 dark:text-[#2AA7B3]' 
+                                : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700/50'
+                            }`}
+                          >
+                            <div className="truncate">{p.name}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

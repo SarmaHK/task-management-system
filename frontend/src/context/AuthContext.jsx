@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { connectSocket, disconnectSocket } from '../services/socket';
+import api from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -23,15 +24,11 @@ export function AuthProvider({ children }) {
     };
   }, [accessToken]);
 
-  // Fetch current user details using access token
-  const fetchMe = useCallback(async (token) => {
+  // Fetch current user details
+  const fetchMe = useCallback(async () => {
     try {
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
+      const response = await api.get('/auth/me');
+      const data = response.data;
       if (data.success && data.data?.user) {
         const u = data.data.user;
         setUser({
@@ -42,53 +39,24 @@ export function AuthProvider({ children }) {
           role: typeof u.role === 'object' ? u.role.name : u.role,
         });
       } else {
-        // If profile fetch fails, clear auth states
         setUser(null);
         setAccessToken(null);
+        persistToken(null);
       }
     } catch (error) {
       console.error('Error fetching current user:', error);
       setUser(null);
       setAccessToken(null);
-    }
-  }, []);
-
-  // Silent session refresh
-  const refreshSession = useCallback(async () => {
-    try {
-      const response = await fetch('/api/auth/refresh-token', {
-        method: 'POST',
-      });
-      const data = await response.json();
-      if (data.success && data.data?.token) {
-        const newToken = data.data.token;
-        setAccessToken(newToken);
-        persistToken(newToken);
-        await fetchMe(newToken);
-        return newToken;
-      }
-    } catch (error) {
-      console.warn('Session refresh failed (no active session)');
+      persistToken(null);
     } finally {
       setLoading(false);
     }
-    return null;
-  }, [fetchMe]);
+  }, []);
 
   // Initial session check on mount
   useEffect(() => {
-    refreshSession();
-  }, [refreshSession]);
-
-  // Background token refresh interval (every 14 minutes)
-  useEffect(() => {
-    if (!accessToken) return;
-    const interval = setInterval(() => {
-      refreshSession();
-    }, 14 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [accessToken, refreshSession]);
+    fetchMe();
+  }, [fetchMe]);
 
   // Manage WebSocket connection lifecycle
   useEffect(() => {

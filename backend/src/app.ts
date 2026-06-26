@@ -18,6 +18,7 @@ import requestRoutes from './routes/request.routes';
 import logRoutes from './routes/log.routes';
 import messageRoutes from './routes/message.routes';
 import reportRoutes from './routes/report.routes';
+import searchRoutes from './routes/search.routes';
 
 import { errorHandler } from './middlewares/error.middleware';
 import { notFoundHandler } from './middlewares/notFound.middleware';
@@ -60,6 +61,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', generalUserRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/search', searchRoutes);
 
 // Handle 404
 app.use(notFoundHandler);
