@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
 import bcrypt from 'bcryptjs';
-import { io } from '../server';
+
 import { SystemLogger } from '../utils/logger';
 import { Role, UserStatus } from '@prisma/client';
 import { SocketService } from '../services/socket.service';
@@ -83,7 +83,7 @@ export const activateUser = async (req: Request, res: Response): Promise<void> =
 
     await SystemLogger.log('USER_ENABLED', `User ${updatedUser.name} (${updatedUser.email}) was activated by Administrator`);
 
-    io.emit('userActivated', { userId: updatedUser.id });
+    SocketService.broadcast('userActivated', { userId: updatedUser.id });
 
     await SocketService.sendNotification(updatedUser.id, {
       type: 'ADMIN_UPDATE',

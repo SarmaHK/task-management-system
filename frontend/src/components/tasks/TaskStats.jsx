@@ -13,8 +13,8 @@ export default function TaskStats({ stats, loading, statusFilter, onFilterChange
         </svg>
       ),
       gradient: 'from-indigo-500 to-violet-600',
-      bg: 'bg-indigo-50',
-      text: 'text-indigo-700',
+      bg: 'bg-[#E6F5F6]',
+      text: 'text-[#0D5A60]',
     },
     {
       label: 'Pending',
@@ -39,8 +39,8 @@ export default function TaskStats({ stats, loading, statusFilter, onFilterChange
         </svg>
       ),
       gradient: 'from-blue-400 to-cyan-500',
-      bg: 'bg-blue-50',
-      text: 'text-blue-700',
+      bg: 'bg-[#E6F5F6]',
+      text: 'text-[#0D5A60]',
     },
     {
       label: 'Completed',
@@ -80,8 +80,8 @@ export default function TaskStats({ stats, loading, statusFilter, onFilterChange
             onClick={() => onFilterChange && onFilterChange(card.statusValue)}
             className={`bg-white rounded-2xl border p-5 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer ${
               isActive 
-                ? 'border-indigo-500 ring-2 ring-indigo-500/10 shadow-sm bg-indigo-50/10' 
-                : 'border-gray-100 hover:border-indigo-200'
+                ? 'border-indigo-500 ring-2 ring-[#118B95]/10 shadow-sm bg-[#E6F5F6]/10' 
+                : 'border-gray-100 hover:border-[#93CFD4]'
             }`}
             style={{ animationDelay: `${i * 0.07}s` }}
           >

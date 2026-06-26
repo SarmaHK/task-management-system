@@ -65,7 +65,7 @@ export default function NotificationPanel({
       {/* Dark Overlay background */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity animate-fade-in"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-all duration-300 animate-fade-in"
           onClick={onClose}
         />
       )}
@@ -99,7 +99,7 @@ export default function NotificationPanel({
           <div className="px-6 py-3 bg-gray-50/50 border-b border-gray-100 flex justify-end">
             <button 
               onClick={onMarkAllAsRead}
-              className="text-[12px] font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+              className="text-[12px] font-semibold text-[#118B95] hover:text-indigo-800 transition-colors cursor-pointer"
             >
               Mark all as read
             </button>
@@ -114,7 +114,7 @@ export default function NotificationPanel({
               className={`p-4 rounded-xl border transition-all ${
                 notif.isRead 
                   ? 'bg-white border-gray-100 opacity-75' 
-                  : 'bg-indigo-50/40 border-indigo-100 shadow-sm'
+                  : 'bg-[#E6F5F6]/40 border-indigo-100 shadow-sm'
               }`}
             >
               <div className="flex justify-between items-start gap-2 mb-1">
@@ -132,7 +132,7 @@ export default function NotificationPanel({
               {!notif.isRead && (
                 <button 
                   onClick={() => onMarkAsRead(notif.id)}
-                  className="text-[11.5px] font-extrabold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+                  className="text-[11.5px] font-extrabold text-[#118B95] hover:text-indigo-800 transition-colors cursor-pointer"
                 >
                   Mark as read ✓
                 </button>

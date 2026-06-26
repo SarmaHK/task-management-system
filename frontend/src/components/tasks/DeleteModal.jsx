@@ -25,7 +25,7 @@ export default function DeleteModal({ task, onConfirm, onCancel, isDeleting }) {
   return (
     /* Backdrop */
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-all duration-300"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}

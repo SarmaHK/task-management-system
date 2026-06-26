@@ -60,7 +60,7 @@ export function ToastProvider({ children }) {
     success: 'bg-emerald-600 text-white',
     error: 'bg-red-600 text-white',
     warning: 'bg-amber-500 text-white',
-    info: 'bg-indigo-600 text-white',
+    info: 'bg-[#118B95] text-white',
   };
 
   return (

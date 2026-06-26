@@ -6,30 +6,76 @@ import projectService from '../../services/projectService';
 
 const COLUMNS = [
   { 
+    id: 'BACKLOG', 
+    title: 'Backlog',
+    subtitle: 'Needs review / parked',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+      </svg>
+    ),
+    accentColor: '#94A3B8',
+    bgCol: 'bg-slate-100/50',
+    borderCol: 'border-slate-300',
+    headerBg: 'bg-slate-400',
+    tagBg: 'bg-slate-200 text-slate-700',
+    dropBorder: 'border-slate-500',
+  },
+  { 
     id: 'TODO', 
-    title: 'To Do', 
-    icon: '⏳',
-    bgClass: 'bg-white/40 border-white/60', 
-    headerClass: 'from-slate-500 to-slate-600 shadow-slate-200',
-    dotColor: 'bg-slate-400' 
+    title: 'To Do',
+    subtitle: 'Not started yet',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+    ),
+    accentColor: '#64748B',
+    bgCol: 'bg-slate-50/80',
+    borderCol: 'border-slate-200',
+    headerBg: 'bg-slate-500',
+    tagBg: 'bg-slate-100 text-slate-600',
+    dropBorder: 'border-slate-400',
   },
   { 
     id: 'IN_PROGRESS', 
-    title: 'In Progress', 
-    icon: '🔄',
-    bgClass: 'bg-indigo-50/40 border-indigo-100/50', 
-    headerClass: 'from-indigo-500 to-purple-600 shadow-indigo-200',
-    dotColor: 'bg-indigo-500' 
+    title: 'In Progress',
+    subtitle: 'Currently active',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+    ),
+    accentColor: '#118B95',
+    bgCol: 'bg-[#E6F5F6]/60',
+    borderCol: 'border-[#93CFD4]',
+    headerBg: 'bg-[#118B95]',
+    tagBg: 'bg-[#BEE3E6] text-[#0D5A60]',
+    dropBorder: 'border-[#118B95]',
   },
   { 
     id: 'COMPLETED', 
-    title: 'Completed', 
-    icon: '✅',
-    bgClass: 'bg-emerald-50/40 border-emerald-100/50', 
-    headerClass: 'from-emerald-400 to-teal-500 shadow-emerald-200',
-    dotColor: 'bg-emerald-500' 
+    title: 'Completed',
+    subtitle: 'Successfully done',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    accentColor: '#10B981',
+    bgCol: 'bg-emerald-50/60',
+    borderCol: 'border-emerald-200',
+    headerBg: 'bg-emerald-500',
+    tagBg: 'bg-emerald-100 text-emerald-700',
+    dropBorder: 'border-emerald-400',
   }
 ];
+
+const PRIORITY_CONFIG = {
+  HIGH:   { badge: 'bg-rose-100 text-rose-700 border-rose-200',   bar: 'bg-rose-500',   dot: 'bg-rose-500',   label: 'High' },
+  MEDIUM: { badge: 'bg-amber-100 text-amber-700 border-amber-200', bar: 'bg-amber-500',  dot: 'bg-amber-500',  label: 'Medium' },
+  LOW:    { badge: 'bg-slate-100 text-slate-600 border-slate-200', bar: 'bg-slate-400',  dot: 'bg-slate-400',  label: 'Low' },
+};
 
 export default function KanbanBoard() {
   const navigate = useNavigate();
@@ -78,217 +124,288 @@ export default function KanbanBoard() {
     setDraggedTaskId(taskId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(taskId));
-    
-    // Slight delay to allow drag ghost to generate before changing opacity
-    setTimeout(() => {
-      e.target.classList.add('opacity-50');
-    }, 0);
+    setTimeout(() => { e.target.classList.add('opacity-40', 'scale-95'); }, 0);
   };
 
   const handleDragEnd = (e) => {
-    e.target.classList.remove('opacity-50');
+    e.target.classList.remove('opacity-40', 'scale-95');
     setDraggedTaskId(null);
     setDragOverColumn(null);
   };
 
   const handleDragOver = (e, columnId) => {
     e.preventDefault();
-    if (dragOverColumn !== columnId) {
-      setDragOverColumn(columnId);
-    }
+    if (dragOverColumn !== columnId) setDragOverColumn(columnId);
   };
 
-  const handleDragLeave = () => {
-    setDragOverColumn(null);
-  };
+  const handleDragLeave = () => setDragOverColumn(null);
 
   const handleDrop = async (e, targetStatus) => {
     e.preventDefault();
     setDragOverColumn(null);
-
     const taskIdStr = e.dataTransfer.getData('text/plain') || draggedTaskId;
     if (!taskIdStr) return;
-
     const taskId = parseInt(taskIdStr);
     const taskToUpdate = tasks.find(t => t.id === taskId);
     if (!taskToUpdate || taskToUpdate.status === targetStatus) return;
-
-    // Optimistic UI update
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: targetStatus } : t));
-
     try {
       await taskService.updateTaskStatus(taskId, targetStatus);
     } catch (err) {
       console.error('Failed to update status on server:', err);
-      // Revert if error
       fetchTasks();
     }
   };
 
-  const getPriorityStyles = (priority) => {
-    switch (priority) {
-      case 'HIGH':
-        return {
-          badge: 'bg-rose-100 text-rose-700 border-rose-200',
-          border: 'border-l-rose-500'
-        };
-      case 'MEDIUM':
-        return {
-          badge: 'bg-amber-100 text-amber-700 border-amber-200',
-          border: 'border-l-amber-500'
-        };
-      case 'LOW':
-      default:
-        return {
-          badge: 'bg-slate-100 text-slate-600 border-slate-200',
-          border: 'border-l-slate-400'
-        };
-    }
-  };
+  const getInitials = (name) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
+
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length;
+  const overallProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
     <DashboardLayout>
-      <div className="relative min-h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 via-indigo-50/40 to-purple-50/30 overflow-hidden flex flex-col">
+      <div className="min-h-[calc(100vh-64px)] bg-[#F7F8F9] dark:bg-slate-900 flex flex-col transition-colors duration-200">
         
-        {/* Decorative background blobs */}
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-300/20 blur-[100px] pointer-events-none mix-blend-multiply" />
-        <div className="absolute bottom-[-10%] right-[-5%] w-[30%] h-[40%] rounded-full bg-purple-300/20 blur-[100px] pointer-events-none mix-blend-multiply" />
-
-        <div className="relative flex flex-col gap-8 max-w-[1400px] w-full mx-auto px-4 sm:px-8 py-8 h-[calc(100vh-64px)] md:h-screen">
-          
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 flex-shrink-0 animate-fadeUp">
-            <div>
-              <h1 className="text-[32px] font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-950 to-purple-800 tracking-tight mb-1">
-                Kanban Board
-              </h1>
-              <p className="text-[14.5px] text-slate-500 font-medium">Drag and drop tasks to update their progress in real-time.</p>
+        {/* ── Page Header ─────────────────────────────────────────── */}
+        <div className="px-6 pt-6 pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeUp">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-xl bg-[#0D5A60] dark:bg-slate-800 flex items-center justify-center shadow-lg shadow-[#0D5A60]/20 dark:shadow-black/20">
+                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-black text-[#0D5A60] dark:text-white tracking-tight">Kanban Board</h1>
             </div>
+            <p className="text-sm text-gray-500 dark:text-slate-400 font-medium ml-13 pl-0.5">Drag and drop tasks to update their status in real-time.</p>
+          </div>
 
-            <div className="flex items-center gap-3 bg-white/60 backdrop-blur-md p-2 rounded-2xl border border-white shadow-sm">
-              <span className="text-[13px] font-extrabold text-indigo-900 uppercase tracking-wide pl-2">Filter:</span>
+          {/* Filter + Progress */}
+          <div className="flex items-center gap-4">
+            {/* Overall Progress Pill */}
+            {!isLoading && totalTasks > 0 && (
+              <div className="hidden sm:flex items-center gap-3 bg-white dark:bg-slate-800 rounded-xl px-4 py-2.5 border border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-200">
+                <div className="flex flex-col items-end">
+                  <span className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Progress</span>
+                  <span className="text-lg font-black text-[#118B95] dark:text-[#2AA7B3]">{overallProgress}%</span>
+                </div>
+                <div className="w-24 h-2 bg-gray-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-[#118B95] to-[#2AA7B3] rounded-full transition-all duration-700"
+                    style={{ width: `${overallProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Filter Dropdown */}
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-xl px-3 py-2.5 border border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-200">
+              <svg className="w-4 h-4 text-[#118B95] dark:text-[#2AA7B3] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
               <div className="relative">
                 <select
                   value={selectedSource}
                   onChange={(e) => setSelectedSource(e.target.value)}
-                  className="appearance-none pl-4 pr-10 py-2 text-[14px] font-bold border-none rounded-xl bg-indigo-50/80 text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer transition-colors hover:bg-indigo-100"
+                  className="appearance-none pr-7 text-sm font-bold text-[#0D5A60] dark:text-[#E6F5F6] bg-transparent focus:outline-none cursor-pointer"
                 >
-                  <option value="my-tasks">🙋 My Assigned Tasks</option>
+                  <option value="my-tasks">My Assigned Tasks</option>
                   {projects.map(p => (
-                    <option key={p.id} value={`project-${p.id}`}>📁 {p.name}</option>
+                    <option key={p.id} value={`project-${p.id}`}>{p.name}</option>
                   ))}
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-indigo-600">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-[#118B95]">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Board Columns Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 min-h-0 overflow-y-auto md:overflow-y-hidden pb-8 animate-fadeUp" style={{ animationDelay: '0.1s' }}>
-            {COLUMNS.map((column) => {
-              const columnTasks = tasks.filter(t => t.status === column.id);
-              const isHovered = dragOverColumn === column.id;
-
+        {/* ── Stats Row ────────────────────────────────────────────── */}
+        {!isLoading && (
+          <div className="px-6 pt-4 pb-2 flex gap-3 animate-fadeUp" style={{ animationDelay: '0.05s' }}>
+            {COLUMNS.map(col => {
+              const count = tasks.filter(t => t.status === col.id).length;
               return (
-                <div
-                  key={column.id}
-                  onDragOver={(e) => handleDragOver(e, column.id)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, column.id)}
-                  className={`flex flex-col rounded-[32px] border backdrop-blur-xl transition-all duration-300 h-full overflow-hidden ${column.bgClass} ${
-                    isHovered ? 'ring-4 ring-indigo-500/20 shadow-2xl scale-[1.01]' : 'shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
-                  }`}
-                >
-                  {/* Column Header */}
-                  <div className="p-5 pb-4 flex items-center justify-between flex-shrink-0 relative z-10">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-[18px] bg-gradient-to-br shadow-md ${column.headerClass} text-white`}>
+                <div key={col.id} className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-xl px-4 py-2 border border-gray-100 dark:border-slate-700 shadow-sm transition-colors duration-200">
+                  <div className={`w-2.5 h-2.5 rounded-full ${col.headerBg}`} />
+                  <span className="text-sm font-bold text-gray-700 dark:text-slate-300">{col.title}</span>
+                  <span className="text-sm font-black text-gray-900 dark:text-white ml-1">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Columns ──────────────────────────────────────────────── */}
+        <div className="flex-1 px-6 pb-6 pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 min-h-0 animate-fadeUp" style={{ animationDelay: '0.1s' }}>
+          {COLUMNS.map((column) => {
+            const columnTasks = tasks.filter(t => t.status === column.id);
+            const isHovered = dragOverColumn === column.id;
+
+            return (
+              <div
+                key={column.id}
+                onDragOver={(e) => handleDragOver(e, column.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, column.id)}
+                className={`flex flex-col rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
+                  isHovered
+                    ? `${column.dropBorder} shadow-xl scale-[1.01] bg-white dark:bg-slate-800`
+                    : `${column.borderCol} ${column.bgCol} dark:bg-slate-800/80 shadow-sm dark:border-slate-700`
+                }`}
+                style={{ minHeight: '520px' }}
+              >
+                {/* Column Header */}
+                <div className="p-4 flex-shrink-0">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white ${column.headerBg} shadow-sm`}>
                         {column.icon}
                       </div>
-                      <h3 className="text-[17px] font-black text-slate-800 tracking-tight">{column.title}</h3>
+                      <div>
+                        <h3 className="text-base font-black text-gray-800 dark:text-white leading-none">{column.title}</h3>
+                        <p className="text-xs text-gray-400 dark:text-slate-400 font-medium mt-0.5">{column.subtitle}</p>
+                      </div>
                     </div>
-                    <div className="bg-white/80 backdrop-blur text-slate-700 text-[13px] font-black px-3 py-1 rounded-full shadow-sm border border-white">
+                    <div className={`${column.tagBg} text-sm font-black w-8 h-8 rounded-xl flex items-center justify-center border`} style={{ borderColor: column.accentColor + '30' }}>
                       {columnTasks.length}
                     </div>
                   </div>
+                  {/* Column Progress Bar */}
+                  {totalTasks > 0 && (
+                    <div className="w-full h-1 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${totalTasks > 0 ? (columnTasks.length / totalTasks) * 100 : 0}%`, backgroundColor: column.accentColor }}
+                      />
+                    </div>
+                  )}
+                </div>
 
-                  <div className="px-5 pb-3 border-b border-white/50" />
+                {/* Divider */}
+                <div className="h-px bg-white/60 dark:bg-slate-700 mx-4" />
 
-                  {/* Cards List container */}
-                  <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-5 pr-3 relative z-10">
-                    {isLoading ? (
-                      <div className="flex flex-col items-center justify-center h-full gap-3 opacity-50">
-                        <div className="w-8 h-8 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin" />
-                        <span className="text-[13px] font-bold text-slate-500">Loading tasks...</span>
+                {/* Cards container */}
+                <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+                  {isLoading ? (
+                    <div className="flex flex-col items-center justify-center h-full gap-3 py-12">
+                      <div className="w-8 h-8 rounded-full border-4 border-[#BEE3E6] border-t-[#118B95] animate-spin" />
+                      <span className="text-xs font-bold text-gray-400">Loading tasks...</span>
+                    </div>
+                  ) : columnTasks.length === 0 ? (
+                      <div className={`flex-1 min-h-[160px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${
+                      isHovered ? 'border-[#118B95] bg-[#E6F5F6]/50 dark:bg-slate-800/50 scale-[1.02]' : 'border-gray-300/60 dark:border-slate-700'
+                    }`}>
+                      <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                        </svg>
                       </div>
-                    ) : columnTasks.length === 0 ? (
-                      <div className="h-32 rounded-2xl border-2 border-dashed border-slate-300/50 flex items-center justify-center text-slate-400 text-[13.5px] font-bold">
-                        Drop tasks here
-                      </div>
-                    ) : (
-                      columnTasks.map((task) => {
-                        const styles = getPriorityStyles(task.priority);
-                        const isOverdue = new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED';
+                      <span className="text-xs font-bold text-gray-400">Drop tasks here</span>
+                    </div>
+                  ) : (
+                    columnTasks.map((task) => {
+                      const priority = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.LOW;
+                      const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED';
+                      const assignees = task.assignments || [];
 
-                        return (
-                          <div
-                            key={task.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, task.id)}
-                            onDragEnd={handleDragEnd}
-                            onClick={() => navigate(`/tasks/${task.id}`)}
-                            className={`bg-white/90 backdrop-blur-sm border-l-4 border-y border-r border-white/80 p-5 rounded-2xl shadow-sm hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 cursor-grab active:cursor-grabbing flex flex-col gap-3 group relative overflow-hidden ${styles.border}`}
-                          >
-                            {/* Inner subtle gradient on hover */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/0 to-indigo-50/0 group-hover:to-indigo-50/50 transition-all duration-500 pointer-events-none" />
-                            
-                            <div className="relative z-10">
-                              <h4 className="text-[15px] font-extrabold text-slate-800 group-hover:text-indigo-600 transition-colors leading-snug line-clamp-2 mb-1.5">
-                                {task.title}
-                              </h4>
-                              {task.description && (
-                                <p className="text-[13px] text-slate-500 leading-relaxed line-clamp-2">
-                                  {task.description}
-                                </p>
-                              )}
-                            </div>
+                      return (
+                        <div
+                          key={task.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, task.id)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => navigate(`/tasks/${task.id}`)}
+                          className="bg-white dark:bg-slate-800 rounded-xl border border-gray-100 dark:border-slate-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-grab active:cursor-grabbing overflow-hidden group"
+                        >
+                          {/* Priority bar on top */}
+                          <div className={`h-1 w-full ${priority.bar}`} />
 
-                            {/* Badges footer */}
-                            <div className="flex flex-wrap items-center gap-2 pt-2 mt-auto relative z-10">
-                              <span className={`text-[10.5px] font-black px-2 py-1 rounded-lg border uppercase tracking-wider ${styles.badge}`}>
-                                {task.priority}
-                              </span>
-                              
+                          <div className="p-4">
+                            {/* Project tag + Priority badge */}
+                            <div className="flex items-center gap-2 mb-3 flex-wrap">
                               {task.project?.name && (
-                                <span className="text-[11px] bg-slate-50 text-slate-600 px-2.5 py-1 rounded-lg border border-slate-200 font-bold max-w-[140px] truncate shadow-sm">
+                                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-300 max-w-[120px] truncate">
                                   {task.project.name}
                                 </span>
                               )}
+                              <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border ${priority.badge} ml-auto`}>
+                                {priority.label}
+                              </span>
+                            </div>
 
+                            {/* Title */}
+                            <h4 className="text-sm font-bold text-gray-800 dark:text-white group-hover:text-[#118B95] dark:group-hover:text-[#2AA7B3] transition-colors leading-snug line-clamp-2 mb-2">
+                              {task.title}
+                            </h4>
+
+                            {/* Description */}
+                            {task.description && (
+                              <p className="text-xs text-gray-400 dark:text-slate-400 leading-relaxed line-clamp-2 mb-3">
+                                {task.description}
+                              </p>
+                            )}
+
+                            {/* Footer */}
+                            <div className="flex items-center justify-between pt-2 border-t border-gray-50 dark:border-slate-700">
+                              
+                              {/* Assignee Avatars */}
+                              <div className="flex -space-x-2">
+                                {assignees.length > 0 ? (
+                                  <>
+                                    {assignees.slice(0, 3).map((a, i) => (
+                                      <div
+                                        key={i}
+                                        title={a.user?.name}
+                                        className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#0D5A60] to-[#2AA7B3] border-2 border-white flex items-center justify-center text-[9px] font-black text-white shadow-sm"
+                                      >
+                                        {getInitials(a.user?.name)}
+                                      </div>
+                                    ))}
+                                    {assignees.length > 3 && (
+                                      <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-slate-800 border-2 border-white dark:border-slate-700 flex items-center justify-center text-[9px] font-black text-gray-500 dark:text-slate-400">
+                                        +{assignees.length - 3}
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-slate-800 border-2 border-white dark:border-slate-700 flex items-center justify-center">
+                                    <svg className="w-3 h-3 text-gray-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Due Date */}
                               {task.dueDate && (
-                                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border shadow-sm ml-auto flex items-center gap-1.5 ${
+                                <span className={`text-[10px] font-bold flex items-center gap-1 px-2 py-1 rounded-lg border ${
                                   isOverdue
-                                    ? 'bg-rose-50 text-rose-600 border-rose-200 animate-pulse'
-                                    : 'bg-white text-slate-500 border-slate-200'
+                                    ? 'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+                                    : 'bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-slate-400 border-gray-100 dark:border-slate-700'
                                 }`}>
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                  {isOverdue && '⚠ '}
                                   {new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                 </span>
                               )}
                             </div>
                           </div>
-                        );
-                      })
-                    )}
-                  </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
-              );
-            })}
-          </div>
-
+              </div>
+            );
+          })}
         </div>
+
       </div>
     </DashboardLayout>
   );

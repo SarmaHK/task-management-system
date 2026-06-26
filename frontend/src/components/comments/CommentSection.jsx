@@ -1,14 +1,21 @@
 import { useState, useEffect } from 'react';
 import commentService from '../../services/commentService';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../utils/ToastContext';
+import ConfirmModal from '../ConfirmModal';
 
 export default function CommentSection({ taskId }) {
   const { user } = useAuth();
+  const toast = useToast();
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingContent, setEditingContent] = useState('');
+
+  // Confirm Modal states
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState(null);
 
   const fetchComments = async () => {
     try {
@@ -39,7 +46,7 @@ export default function CommentSection({ taskId }) {
         fetchComments();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to add comment');
+      toast.error(err.response?.data?.message || 'Failed to add comment');
     }
   };
 
@@ -53,20 +60,27 @@ export default function CommentSection({ taskId }) {
         fetchComments();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update comment');
+      toast.error(err.response?.data?.message || 'Failed to update comment');
     }
   };
 
-  const handleDeleteComment = async (commentId) => {
-    if (!window.confirm('Are you sure you want to delete this comment?')) return;
+  const handleDeleteConfirm = async () => {
+    if (!commentToDelete) return;
     try {
-      const res = await commentService.deleteComment(commentId);
+      const res = await commentService.deleteComment(commentToDelete);
       if (res.success) {
+        setConfirmModalOpen(false);
+        setCommentToDelete(null);
         fetchComments();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to delete comment');
+      toast.error(err.response?.data?.message || 'Failed to delete comment');
     }
+  };
+
+  const handleDeleteComment = (commentId) => {
+    setCommentToDelete(commentId);
+    setConfirmModalOpen(true);
   };
 
   const isAllowedToDelete = (comment) => {
@@ -94,11 +108,11 @@ export default function CommentSection({ taskId }) {
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Write a comment..."
-            className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-[13.5px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-[13.5px] focus:outline-none focus:ring-2 focus:ring-[#118B95]"
           />
           <button
             type="submit"
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13px] rounded-xl cursor-pointer"
+            className="px-4 py-2 bg-[#118B95] hover:bg-[#0D5A60] text-white font-bold text-[13px] rounded-xl cursor-pointer"
           >
             Send
           </button>
@@ -129,7 +143,7 @@ export default function CommentSection({ taskId }) {
                         setEditingCommentId(comment.id);
                         setEditingContent(comment.content);
                       }}
-                      className="text-[10.5px] font-bold text-gray-400 hover:text-indigo-600"
+                      className="text-[10.5px] font-bold text-gray-400 hover:text-[#118B95]"
                     >
                       Edit
                     </button>
@@ -155,7 +169,7 @@ export default function CommentSection({ taskId }) {
                   />
                   <button
                     onClick={() => handleUpdateComment(comment.id)}
-                    className="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-[11px] font-bold"
+                    className="px-2.5 py-1 bg-[#118B95] text-white rounded-lg text-[11px] font-bold"
                   >
                     Save
                   </button>
@@ -173,6 +187,19 @@ export default function CommentSection({ taskId }) {
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={confirmModalOpen}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment?"
+        confirmText="Delete"
+        isDestructive={true}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          setConfirmModalOpen(false);
+          setCommentToDelete(null);
+        }}
+      />
     </div>
   );
 }

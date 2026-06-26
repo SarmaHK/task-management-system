@@ -52,7 +52,7 @@ interface FilterTasksInput {
 }
 
 // ─── Valid Values ─────────────────────────────────────
-const VALID_STATUSES = ['TODO', 'IN_PROGRESS', 'COMPLETED'];
+const VALID_STATUSES = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'COMPLETED'];
 const VALID_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
 
 export class TaskService {
@@ -187,7 +187,7 @@ export class TaskService {
         projectId,
         creatorId,
         priority: (priority as any) || 'MEDIUM',
-        status: 'TODO',
+        status: 'BACKLOG',
         dueDate: dueDate ? new Date(dueDate) : undefined,
       },
       include: {
@@ -558,7 +558,7 @@ export class TaskService {
 
     // 1. Validate status value
     if (!VALID_STATUSES.includes(status)) {
-      throw new AppError('Status must be TODO, IN_PROGRESS or COMPLETED', 400);
+      throw new AppError('Status must be BACKLOG, TODO, IN_PROGRESS or COMPLETED', 400);
     }
 
     // 2. Task exists?

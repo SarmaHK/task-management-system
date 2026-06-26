@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Rounded teal background -->
+  <rect width="512" height="512" rx="112" fill="#0D5A60" />
+  
+  <!-- Top-left square (White) -->
+  <rect x="116" y="116" width="120" height="120" rx="32" fill="#FFFFFF" />
+  
+  <!-- Top-right square (Light Teal) -->
+  <rect x="276" y="116" width="120" height="120" rx="32" fill="#2AA7B3" />
+  
+  <!-- Bottom-left square (Light Teal) -->
+  <rect x="116" y="276" width="120" height="120" rx="32" fill="#2AA7B3" />
+  
+  <!-- Bottom-right square (White) -->
+  <rect x="276" y="276" width="120" height="120" rx="32" fill="#FFFFFF" />
+</svg>

@@ -45,7 +45,7 @@ export default function TaskCard({ task, onDelete, onStatusChange }) {
       <div className="p-5 flex flex-col flex-1 gap-3">
         {/* Header row */}
         <div className="flex items-start justify-between gap-2">
-          <h3 className="text-[15px] font-bold text-gray-900 leading-snug group-hover:text-indigo-700 transition-colors line-clamp-2 flex-1">
+          <h3 className="text-[15px] font-bold text-gray-900 leading-snug group-hover:text-[#0D5A60] transition-colors line-clamp-2 flex-1">
             {task.title}
           </h3>
           {/* Priority badge */}

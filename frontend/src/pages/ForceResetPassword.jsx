@@ -62,10 +62,10 @@ export default function ForceResetPassword() {
     }
   };
 
-  const inputCls = 'w-full pl-[38px] pr-3.5 py-[10px] text-[13.5px] text-gray-900 bg-gray-50 border-[1.5px] border-gray-200 rounded-[10px] outline-none transition-all duration-150 font-medium placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:shadow-[0_0_0_3px_rgba(99,102,241,0.12)]';
+  const inputCls = 'w-full pl-[38px] pr-3.5 py-[10px] text-[13.5px] text-gray-900 dark:text-white bg-gray-50 dark:bg-slate-900/50 border-[1.5px] border-gray-200 dark:border-slate-700 rounded-[10px] outline-none transition-all duration-150 font-medium placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-[#118B95] focus:bg-white dark:focus:bg-slate-900 focus:shadow-[0_0_0_3px_rgba(17,139,149,0.12)]';
 
   return (
-    <div className="flex min-h-screen font-sans bg-indigo-50 relative">
+    <div className="flex min-h-screen font-sans bg-[#E6F5F6] dark:bg-slate-900 relative transition-colors duration-300">
 
       {/* ── Floating Success Toast Notification ── */}
       {success && (
@@ -141,7 +141,7 @@ export default function ForceResetPassword() {
       </div>
 
       {/* ── Right white form panel ──────────────────────────────── */}
-      <div className="flex-1 flex items-center justify-center px-6 py-10 bg-white overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center px-6 py-10 bg-white dark:bg-slate-800 overflow-y-auto transition-colors duration-300">
         <div className="w-full max-w-[400px] animate-fadeUp" style={{animationDelay:'0.1s'}}>
 
           <div className="flex items-center gap-2.5 mb-6 lg:hidden">
@@ -163,7 +163,7 @@ export default function ForceResetPassword() {
           </div>
 
           <div className="mb-7">
-            <h2 className="text-[26px] font-bold text-indigo-950 tracking-tight leading-tight mb-1.5">
+            <h2 className="text-[26px] font-bold text-indigo-950 dark:text-white tracking-tight leading-tight mb-1.5">
               Set your password
             </h2>
             <p className="text-[13.5px] text-gray-500 font-medium">
@@ -184,7 +184,7 @@ export default function ForceResetPassword() {
           <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="temporaryPassword" className="text-[12.5px] font-semibold text-gray-700 tracking-wide">
+              <label htmlFor="temporaryPassword" className="text-[12.5px] font-semibold text-gray-700 dark:text-slate-300 tracking-wide">
                 Temporary password
               </label>
               <div className="relative">
@@ -205,7 +205,7 @@ export default function ForceResetPassword() {
                 <button
                   type="button"
                   onClick={() => setShowTemporary(!showTemporary)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-500 p-1 rounded transition-colors"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#2AA7B3] p-1 rounded transition-colors"
                 >
                   {showTemporary ? (
                     <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
@@ -223,7 +223,7 @@ export default function ForceResetPassword() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="newPassword" className="text-[12.5px] font-semibold text-gray-700 tracking-wide">
+              <label htmlFor="newPassword" className="text-[12.5px] font-semibold text-gray-700 dark:text-slate-300 tracking-wide">
                 New password
               </label>
               <div className="relative">
@@ -245,7 +245,7 @@ export default function ForceResetPassword() {
                 <button
                   type="button"
                   onClick={() => setShowNew(!showNew)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-500 p-1 rounded transition-colors"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#2AA7B3] p-1 rounded transition-colors"
                 >
                   {showNew ? (
                     <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
@@ -264,7 +264,7 @@ export default function ForceResetPassword() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="confirmPassword" className="text-[12.5px] font-semibold text-gray-700 tracking-wide">
+              <label htmlFor="confirmPassword" className="text-[12.5px] font-semibold text-gray-700 dark:text-slate-300 tracking-wide">
                 Confirm new password
               </label>
               <div className="relative">
@@ -279,12 +279,12 @@ export default function ForceResetPassword() {
                   placeholder="Repeat your new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`w-full pl-[38px] pr-24 py-[10px] text-[13.5px] text-gray-900 bg-gray-50 border-[1.5px] rounded-[10px] outline-none transition-all duration-150 font-medium placeholder:text-gray-400 ${confirmBorderClass}`}
+                  className={`w-full pl-[38px] pr-24 py-[10px] text-[13.5px] text-gray-900 dark:text-white bg-gray-50 dark:bg-slate-900/50 border-[1.5px] rounded-[10px] outline-none transition-all duration-150 font-medium placeholder:text-gray-400 dark:placeholder:text-slate-500 ${confirmBorderClass}`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-indigo-500 p-1 rounded transition-colors"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#2AA7B3] p-1 rounded transition-colors"
                 >
                   {showConfirm ? (
                     <svg width="15" height="15" viewBox="0 0 16 16" fill="none">

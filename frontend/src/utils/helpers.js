@@ -6,6 +6,12 @@
  * Maps a task status key to display label + Tailwind colour classes
  */
 export const STATUS_CONFIG = {
+  BACKLOG: {
+    label: 'Backlog',
+    dot: 'bg-slate-400',
+    badge: 'bg-slate-50 text-slate-600 border-slate-200',
+    icon: '📝',
+  },
   TODO: {
     label: 'To Do',
     dot: 'bg-amber-400',
@@ -15,7 +21,7 @@ export const STATUS_CONFIG = {
   IN_PROGRESS: {
     label: 'In Progress',
     dot: 'bg-blue-400',
-    badge: 'bg-blue-50 text-blue-700 border-blue-200',
+    badge: 'bg-[#E6F5F6] text-[#0D5A60] border-[#93CFD4]',
     icon: '🔄',
   },
   COMPLETED: {

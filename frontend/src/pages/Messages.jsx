@@ -110,15 +110,15 @@ export default function Messages() {
                   onClick={() => setActiveProject(project)}
                   className={`w-full text-left p-3 rounded-xl transition-colors flex items-center gap-3 ${
                     activeProject?.id === project.id 
-                      ? 'bg-blue-50 border border-blue-100 shadow-sm' 
+                      ? 'bg-[#E6F5F6] border border-[#BEE3E6] shadow-sm' 
                       : 'hover:bg-gray-100 border border-transparent'
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-[#BEE3E6] flex items-center justify-center text-[#118B95] font-bold shrink-0">
                     {project.name.substring(0, 2).toUpperCase()}
                   </div>
                   <div className="overflow-hidden">
-                    <h3 className={`text-sm font-semibold truncate ${activeProject?.id === project.id ? 'text-blue-700' : 'text-gray-900'}`}>
+                    <h3 className={`text-sm font-semibold truncate ${activeProject?.id === project.id ? 'text-[#0D5A60]' : 'text-gray-900'}`}>
                       {project.name}
                     </h3>
                     <p className="text-xs text-gray-500 truncate">Project Team</p>
@@ -136,7 +136,7 @@ export default function Messages() {
               {/* Chat Header */}
               <div className="h-16 px-6 border-b border-gray-200 flex items-center justify-between bg-white shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                  <div className="w-8 h-8 rounded-lg bg-[#BEE3E6] flex items-center justify-center text-[#118B95] font-bold">
                     {activeProject.name.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -163,7 +163,7 @@ export default function Messages() {
                     
                     return (
                       <div key={index} className={`flex gap-3 ${isMine ? 'flex-row-reverse' : ''}`}>
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#0D5A60] to-[#2AA7B3] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm">
                           {senderInitial}
                         </div>
                         <div className={`flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[70%]`}>
@@ -172,7 +172,7 @@ export default function Messages() {
                           )}
                           <div className={`px-4 py-2.5 rounded-2xl ${
                             isMine 
-                              ? 'bg-[#2563EB] text-white rounded-tr-sm' 
+                              ? 'bg-[#118B95] text-white rounded-tr-sm' 
                               : 'bg-white border border-gray-100 shadow-sm text-gray-900 rounded-tl-sm'
                           }`}>
                             <p className="text-sm leading-relaxed">{msg.content}</p>
@@ -196,12 +196,12 @@ export default function Messages() {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
-                    className="flex-1 bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block px-4 py-3 outline-none"
+                    className="flex-1 bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-[#118B95] focus:border-[#118B95] block px-4 py-3 outline-none"
                   />
                   <button
                     type="submit"
                     disabled={!newMessage.trim()}
-                    className="px-6 py-3 bg-[#2563EB] text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-6 py-3 bg-[#118B95] text-white font-semibold rounded-xl hover:bg-[#0D5A60] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     <span>Send</span>
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -104,7 +104,6 @@ export function AuthProvider({ children }) {
 
   // Login action
   const login = async (email, password) => {
-    setLoading(true);
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -121,17 +120,14 @@ export function AuthProvider({ children }) {
       setAccessToken(token);
       persistToken(token);
       setUser(loggedUser);
-      setLoading(false);
       return resData.data;
     } catch (error) {
-      setLoading(false);
       throw error;
     }
   };
 
   // Register action
   const register = async (name, email, password) => {
-    setLoading(true);
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
@@ -144,10 +140,8 @@ export function AuthProvider({ children }) {
         throw new Error(resData.message || 'Registration failed');
       }
 
-      setLoading(false);
       return resData;
     } catch (error) {
-      setLoading(false);
       throw error;
     }
   };

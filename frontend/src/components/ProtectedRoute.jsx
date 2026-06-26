@@ -7,8 +7,8 @@ export default function ProtectedRoute({ allowedRoles }) {
   // Show a sleek loading state while checking session
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-indigo-50 font-sans">
-        <div className="w-10 h-10 border-4 border-indigo-600/35 border-t-indigo-600 rounded-full animate-spin mb-4" />
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#E6F5F6] font-sans">
+        <div className="w-10 h-10 border-4 border-[#118B95]/35 border-t-indigo-600 rounded-full animate-spin mb-4" />
         <span className="text-[14px] text-indigo-900 font-semibold tracking-wide">
           Verifying session...
         </span>

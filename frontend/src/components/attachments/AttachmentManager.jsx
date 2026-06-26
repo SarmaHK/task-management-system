@@ -4,6 +4,7 @@ import projectService from '../../services/projectService';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../utils/ToastContext';
 import { subscribeToNotifications } from '../../services/socket';
+import ConfirmModal from '../ConfirmModal';
 
 export default function AttachmentManager({ taskId, projectId }) {
   const { user } = useAuth();
@@ -17,6 +18,10 @@ export default function AttachmentManager({ taskId, projectId }) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Confirm Modal states
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [attachmentToDelete, setAttachmentToDelete] = useState(null);
 
   const fetchAttachments = async () => {
     try {
@@ -120,17 +125,24 @@ export default function AttachmentManager({ taskId, projectId }) {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this attachment?')) return;
+  const handleDeleteConfirm = async () => {
+    if (!attachmentToDelete) return;
     try {
-      const res = await attachmentService.deleteAttachment(id);
+      const res = await attachmentService.deleteAttachment(attachmentToDelete);
       if (res.success) {
         toast.success('Attachment deleted.');
+        setConfirmModalOpen(false);
+        setAttachmentToDelete(null);
         fetchAttachments();
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete attachment');
     }
+  };
+
+  const handleDelete = (id) => {
+    setAttachmentToDelete(id);
+    setConfirmModalOpen(true);
   };
 
   const handleDownload = async (id) => {
@@ -186,7 +198,7 @@ export default function AttachmentManager({ taskId, projectId }) {
       <div className="flex flex-col gap-3">
           <div 
             className={`border-2 border-dashed rounded-xl p-4 transition-colors ${
-              isDragOver ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-200 bg-gray-50/30'
+              isDragOver ? 'border-indigo-500 bg-[#E6F5F6]/50' : 'border-gray-200 bg-gray-50/30'
             } ${uploading ? 'opacity-70 pointer-events-none' : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -217,7 +229,7 @@ export default function AttachmentManager({ taskId, projectId }) {
                   <button
                     type="button"
                     onClick={() => document.getElementById(fileInputId).click()}
-                    className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-indigo-700 font-bold text-[12px] rounded-xl cursor-pointer shadow-sm transition-colors"
+                    className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-[#0D5A60] font-bold text-[12px] rounded-xl cursor-pointer shadow-sm transition-colors"
                   >
                     Browse Files
                   </button>
@@ -239,7 +251,7 @@ export default function AttachmentManager({ taskId, projectId }) {
                       type="button"
                       onClick={handleUpload}
                       disabled={uploading}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13px] rounded-xl shadow-md shadow-indigo-100 transition-colors cursor-pointer disabled:opacity-50"
+                      className="px-4 py-2 bg-[#118B95] hover:bg-[#0D5A60] text-white font-bold text-[13px] rounded-xl shadow-md shadow-indigo-100 transition-colors cursor-pointer disabled:opacity-50"
                     >
                       {uploading ? 'Uploading...' : 'Upload File'}
                     </button>
@@ -252,7 +264,7 @@ export default function AttachmentManager({ taskId, projectId }) {
             {uploading && (
               <div className="mt-4 w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                 <div 
-                  className="bg-indigo-600 h-1.5 rounded-full transition-all duration-300 ease-out" 
+                  className="bg-[#118B95] h-1.5 rounded-full transition-all duration-300 ease-out" 
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
@@ -263,7 +275,7 @@ export default function AttachmentManager({ taskId, projectId }) {
       {/* File List */}
       {loading ? (
         <div className="flex justify-center items-center py-4">
-          <div className="w-6 h-6 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-[#118B95]/30 border-t-indigo-600 rounded-full animate-spin" />
         </div>
       ) : attachments.length === 0 ? (
         <div className="text-gray-400 text-[13px] py-4 text-center italic bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
@@ -277,7 +289,7 @@ export default function AttachmentManager({ taskId, projectId }) {
               className="p-3 bg-white border border-gray-150 rounded-xl flex items-center justify-between gap-3 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all group"
             >
               <div className="min-w-0 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-500 flex items-center justify-center text-xl flex-shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-[#E6F5F6] text-[#2AA7B3] flex items-center justify-center text-xl flex-shrink-0">
                   {att.mimeType?.includes('image') ? '🖼️' : '📄'}
                 </div>
                 <div className="min-w-0 flex flex-col">
@@ -289,7 +301,7 @@ export default function AttachmentManager({ taskId, projectId }) {
                     <span className="w-1 h-1 rounded-full bg-gray-300" />
                     <span>{new Date(att.createdAt).toLocaleDateString()}</span>
                   </div>
-                  <span className="text-[9.5px] text-indigo-500/80 font-bold mt-0.5 truncate">
+                  <span className="text-[9.5px] text-[#2AA7B3]/80 font-bold mt-0.5 truncate">
                     By {att.user?.name || 'User'}
                   </span>
                 </div>
@@ -298,7 +310,7 @@ export default function AttachmentManager({ taskId, projectId }) {
               <div className="flex gap-1 flex-shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
                 <button
                   onClick={() => handleDownload(att.id)}
-                  className="w-8 h-8 flex items-center justify-center text-[12px] font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
+                  className="w-8 h-8 flex items-center justify-center text-[12px] font-bold text-[#118B95] hover:text-indigo-800 hover:bg-[#E6F5F6] rounded-lg transition-colors"
                   title="Download File"
                 >
                   ↓
@@ -326,6 +338,19 @@ export default function AttachmentManager({ taskId, projectId }) {
           ))}
         </div>
       )}
+      
+      <ConfirmModal
+        isOpen={confirmModalOpen}
+        title="Delete Attachment"
+        message="Are you sure you want to delete this attachment?"
+        confirmText="Delete"
+        isDestructive={true}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          setConfirmModalOpen(false);
+          setAttachmentToDelete(null);
+        }}
+      />
     </div>
   );
 }

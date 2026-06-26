@@ -196,9 +196,22 @@ export class ProjectService {
     return updatedProject;
   }
 
-  // ─── DELETE PROJECT (BLOCKED) ────────────────────────
+  // ─── DELETE PROJECT ────────────────────────
   public static async deleteProject(projectId: number, userId: number, userRole: Role) {
-    throw new AppError('Direct project deletion is disabled. Projects can be archived by changing their status.', 403);
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project || project.isDeleted) {
+      throw new AppError('Project not found', 404);
+    }
+
+    if (project.ownerId !== userId || userRole !== Role.PROJECT_MANAGER) {
+      throw new AppError('Only the project creator can delete this project', 403);
+    }
+
+    // Soft delete the project to preserve audit trail and avoid FK constraint errors
+    await prisma.project.update({ 
+      where: { id: projectId },
+      data: { isDeleted: true }
+    });
   }
 
   // ─── ADD PROJECT MEMBER ──────────────────────────────

@@ -6,6 +6,7 @@ import projectService from '../../services/projectService';
 import taskService from '../../services/taskService';
 
 const STATUSES = [
+  { value: 'BACKLOG', label: '📝 Backlog' },
   { value: 'TODO', label: '⏳ To Do' },
   { value: 'IN_PROGRESS', label: '🔄 In Progress' },
   { value: 'COMPLETED', label: '✅ Completed' },
@@ -38,7 +39,7 @@ export default function TaskForm({
     title: '',
     description: '',
     priority: 'MEDIUM',
-    status: 'TODO',
+    status: 'BACKLOG',
     dueDate: '',
     projectId: '',
     assigneeIds: [],
@@ -220,7 +221,7 @@ export default function TaskForm({
   };
 
   const inputBase =
-    'w-full px-4 py-3 rounded-xl border text-[14px] font-medium text-gray-800 bg-white transition-all duration-150 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400';
+    'w-full px-4 py-3 rounded-xl border text-[14px] font-medium text-gray-800 bg-white transition-all duration-150 outline-none focus:ring-2 focus:ring-[#118B95]/30 focus:border-indigo-400';
   const inputError = 'border-red-300 bg-red-50/30 focus:ring-red-400/30 focus:border-red-400';
   const inputNormal = 'border-gray-200 hover:border-gray-300';
 
@@ -349,7 +350,7 @@ export default function TaskForm({
       {/* Searchable Task Assignees Selector - including all system collaborators */}
       {form.projectId && (
         <div className="flex flex-col gap-1.5 collaborator-search-container relative">
-          <label className="text-[13px] font-bold text-indigo-950 block mb-1">
+          <label className="text-[13px] font-bold text-[#052D30] block mb-1">
             Task Assignees (Collaborators & Members)
           </label>
 
@@ -361,9 +362,9 @@ export default function TaskForm({
                 .map((m) => (
                   <span
                     key={m.userId}
-                    className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-950 px-2.5 py-1 rounded-xl text-[12px] font-bold shadow-sm"
+                    className="inline-flex items-center gap-1.5 bg-[#E6F5F6] border border-[#BEE3E6] text-[#052D30] px-2.5 py-1 rounded-xl text-[12px] font-bold shadow-sm"
                   >
-                    <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[9px] font-extrabold flex items-center justify-center">
+                    <span className="w-4 h-4 rounded-full bg-[#118B95] text-white text-[9px] font-extrabold flex items-center justify-center">
                       {(m.name || 'U').charAt(0).toUpperCase()}
                     </span>
                     {m.name}
@@ -371,7 +372,7 @@ export default function TaskForm({
                     <button
                       type="button"
                       onClick={() => handleAssigneeChange(m.userId, false)}
-                      className="text-indigo-400 hover:text-indigo-600 font-extrabold focus:outline-none ml-1 cursor-pointer"
+                      className="text-gray-400 hover:text-[#118B95] font-extrabold focus:outline-none ml-1 cursor-pointer"
                     >
                       ✕
                     </button>
@@ -437,21 +438,21 @@ export default function TaskForm({
                               setSearchQuery('');
                               setDropdownOpen(false);
                             }}
-                            className={`flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50/50 cursor-pointer transition-colors text-[13px] font-medium ${
-                              isSelected ? 'bg-indigo-50/20' : ''
+                            className={`flex items-center justify-between px-4 py-2.5 hover:bg-[#E6F5F6]/50 cursor-pointer transition-colors text-[13px] font-medium ${
+                              isSelected ? 'bg-[#E6F5F6]/20' : ''
                             }`}
                           >
                             <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-[11px] font-extrabold flex items-center justify-center">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#2AA7B3] to-[#118B95] text-white text-[11px] font-extrabold flex items-center justify-center">
                                 {(m.name || 'U').charAt(0).toUpperCase()}
                               </div>
                               <div className="flex flex-col">
-                                <span className="font-bold text-indigo-950">{m.name}</span>
+                                <span className="font-bold text-[#052D30]">{m.name}</span>
                                 <span className="text-[11px] text-gray-400">{m.email} • ID: {m.userId}</span>
                               </div>
                             </div>
                             {isSelected && (
-                              <span className="text-indigo-600 font-bold text-[12.5px] pr-1">✓ Selected</span>
+                              <span className="text-[#118B95] font-bold text-[12.5px] pr-1">✓ Selected</span>
                             )}
                           </div>
                         );
@@ -470,7 +471,7 @@ export default function TaskForm({
           id="task-form-submit"
           type="submit"
           disabled={isSubmitting}
-          className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-[14.5px] rounded-xl shadow-lg hover:shadow-indigo-500/30 hover:from-indigo-500 hover:to-violet-500 active:scale-[0.98] transition-all duration-150 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+          className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-[#118B95] to-[#0D5A60] text-white font-bold text-[14.5px] rounded-xl shadow-lg hover:shadow-[#118B95]/30 hover:from-[#2AA7B3] hover:to-[#118B95] active:scale-[0.98] transition-all duration-150 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
         >
           {isSubmitting ? (
             <>
