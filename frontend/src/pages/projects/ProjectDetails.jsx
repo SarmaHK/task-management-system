@@ -324,29 +324,7 @@ export default function ProjectDetails() {
                 <form onSubmit={handleAddMember} className="border-t border-gray-50 pt-4 flex flex-col gap-3">
                   <h4 className="text-[13px] font-bold text-indigo-950">Link Team Member</h4>
                   
-<<<<<<< HEAD
-                  <div>
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Search User (Optional)</label>
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Type name or email..."
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
-                    />
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Select User</label>
-                    <select
-                      required
-                      value={selectedUserId}
-                      onChange={(e) => setSelectedUserId(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                    >
-                      {allUsers.length === 0 ? (
-                        <option value="">No matching users found</option>
-                      ) : (
-                        <>
-                          <option value="">-- Choose User --</option>
-=======
+
                   <div className="relative">
                     <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Select Collaborator</label>
                     <div 
@@ -374,7 +352,7 @@ export default function ProjectDetails() {
                           />
                         </div>
                         <div className="max-h-48 overflow-y-auto">
->>>>>>> f9b1ce8e8fd2292944cfe997d2abd7af02f93996
+
                           {allUsers
                             .filter(u => !project.members.some(pm => pm.userId === u.id))
                             .filter(u => 
@@ -395,14 +373,7 @@ export default function ProjectDetails() {
                                 <div className="text-[11px] text-gray-500">{u.email}</div>
                               </div>
                             ))}
-<<<<<<< HEAD
-                        </>
-                      )}
-                    </select>
-                  </div>
 
-
-=======
                           {allUsers.filter(u => !project.members.some(pm => pm.userId === u.id)).length === 0 && (
                             <div className="px-3 py-4 text-center text-[12px] text-gray-500 italic">No available collaborators found.</div>
                           )}
@@ -410,7 +381,6 @@ export default function ProjectDetails() {
                       </div>
                     )}
                   </div>
->>>>>>> f9b1ce8e8fd2292944cfe997d2abd7af02f93996
 
                   <button
                     type="submit"
