@@ -1,23 +1,47 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
-RUN npm ci
+COPY prisma ./prisma/
 
+# Install dependencies
+RUN npm install
+
+# Copy source code
 COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Build TypeScript
 RUN npm run build
 
 # Production stage
 FROM node:20-alpine
 
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
+# Install production dependencies only
 COPY package*.json ./
-RUN npm ci --only=production
+COPY prisma ./prisma/
+RUN npm install --omit=dev
 
+# Copy generated prisma client and build output
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/dist ./dist
+
+# Use unprivileged node user
+USER node
 
 EXPOSE 5000
 
