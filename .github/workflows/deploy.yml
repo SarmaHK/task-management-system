@@ -31,6 +31,9 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /home/ubuntu/task-management-system
+            # Remove orphaned files that scp doesn't delete automatically
+            rm -f backend/src/controllers/search.controller.ts
+            rm -f backend/src/routes/search.routes.ts
             # Bring down the old containers
             docker compose down
             # Build and start new containers
