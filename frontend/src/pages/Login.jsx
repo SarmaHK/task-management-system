@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -11,6 +12,7 @@ export default function Login() {
   const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { isDarkMode, toggleTheme } = useTheme();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -78,16 +80,35 @@ export default function Login() {
           {/* Decorative small circle — top right mid */}
           <div className="absolute top-[38%] right-[-20px] w-14 h-14 rounded-full bg-[#BEE3E6] opacity-40 pointer-events-none" />
 
-          {/* ── Logo ── */}
-          <div className="flex items-center gap-3 mb-10">
-            {/* Grid icon */}
-            <div className="grid grid-cols-2 gap-[3px]">
-              <div className="w-4 h-4 rounded-sm bg-[#118B95]" />
-              <div className="w-4 h-4 rounded-sm bg-[#2AA7B3]" />
-              <div className="w-4 h-4 rounded-sm bg-[#2AA7B3]" />
-              <div className="w-4 h-4 rounded-sm bg-[#0D5A60]" />
+          {/* ── Header Area (Logo & Theme Toggle) ── */}
+          <div className="flex justify-between items-center mb-10 relative z-10">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="grid grid-cols-2 gap-[3px]">
+                <div className="w-4 h-4 rounded-sm bg-[#118B95]" />
+                <div className="w-4 h-4 rounded-sm bg-[#2AA7B3]" />
+                <div className="w-4 h-4 rounded-sm bg-[#2AA7B3]" />
+                <div className="w-4 h-4 rounded-sm bg-[#0D5A60]" />
+              </div>
+              <span className="text-xl font-black text-[#0D5A60] dark:text-[#E6F5F6] tracking-widest uppercase">TaskFlow</span>
             </div>
-            <span className="text-xl font-black text-[#0D5A60] tracking-widest uppercase">TaskFlow</span>
+
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full text-gray-400 hover:text-[#118B95] hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:text-white transition-colors"
+              title="Toggle Dark Mode"
+            >
+              {isDarkMode ? (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
           </div>
 
           {/* ── Heading ── */}
