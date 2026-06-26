@@ -10,6 +10,14 @@ const options = {
     },
     servers: [
       {
+        url: 'http://18.143.198.91/api',
+        description: 'Production Server (via Nginx)',
+      },
+      {
+        url: 'http://18.143.198.91:5000',
+        description: 'Production Server (Direct Port)',
+      },
+      {
         url: 'http://localhost:5000',
         description: 'Development server',
       },

@@ -25,6 +25,15 @@ import { swaggerSpec } from './swagger';
 
 const app: Application = express();
 
+// Swagger Documentation (Must be before Helmet to prevent CSP issues)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.min.css',
+  customJs: [
+    'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-standalone-preset.min.js'
+  ]
+}));
+
 // Security Middlewares
 app.use(helmet());
 app.use(cors());
@@ -35,9 +44,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // Logging Middleware
 app.use(morgan('dev'));
-
-// Swagger Documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Routes
 app.use('/api/health', healthRoutes);

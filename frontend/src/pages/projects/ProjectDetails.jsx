@@ -94,10 +94,6 @@ export default function ProjectDetails() {
 
   useEffect(() => {
     if (!isProjectOwner) return;
-    if (searchQuery.trim().length < 2) {
-      setAllUsers([]);
-      return;
-    }
 
     const delayDebounceFn = setTimeout(async () => {
       try {
@@ -326,7 +322,7 @@ export default function ProjectDetails() {
                   <h4 className="text-[13px] font-bold text-indigo-950">Link Team Member</h4>
                   
                   <div>
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Search User (Type &gt;= 2 chars)</label>
+                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Search User (Optional)</label>
                     <input
                       type="text"
                       value={searchQuery}
@@ -341,9 +337,7 @@ export default function ProjectDetails() {
                       onChange={(e) => setSelectedUserId(e.target.value)}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
-                      {searchQuery.trim().length < 2 ? (
-                        <option value="">-- Type search query above --</option>
-                      ) : allUsers.length === 0 ? (
+                      {allUsers.length === 0 ? (
                         <option value="">No matching users found</option>
                       ) : (
                         <>
@@ -358,17 +352,7 @@ export default function ProjectDetails() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Project Role</label>
-                    <select
-                      value={selectedRole}
-                      onChange={(e) => setSelectedRole(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                    >
-                      <option value="COLLABORATOR">Collaborator</option>
-                      <option value="PROJECT_MANAGER">Project Manager</option>
-                    </select>
-                  </div>
+
 
                   <button
                     type="submit"

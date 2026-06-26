@@ -48,7 +48,7 @@ export class ProjectService {
 
   // ─── GET ALL PROJECTS ────────────────────────────────
   public static async getAllProjects(userId: number, userRole: Role) {
-    if (userRole === Role.ADMIN) {
+    if (userRole === Role.ADMIN || userRole === Role.PROJECT_MANAGER) {
       return prisma.project.findMany({
         where: { isDeleted: false },
         include: {

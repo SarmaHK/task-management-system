@@ -275,25 +275,18 @@ export const getSearchableUsers = async (req: Request, res: Response): Promise<v
 
     const searchTerm = String(search || '').trim();
 
-    // Enforce constraints: search must be at least 2 characters
-    if (searchTerm.length < 2) {
-      res.status(200).json({
-        success: true,
-        data: []
-      });
-      return;
-    }
-
     const takeVal = Math.min(parseInt(String(limit || '20'), 10), 50);
     const skipVal = Math.max(parseInt(String(offset || '0'), 10), 0);
 
     const users = await prisma.user.findMany({
       where: {
         status: UserStatus.ACTIVE,
-        OR: [
-          { name: { contains: searchTerm, mode: 'insensitive' } },
-          { email: { contains: searchTerm, mode: 'insensitive' } }
-        ]
+        ...(searchTerm ? {
+          OR: [
+            { name: { contains: searchTerm, mode: 'insensitive' } },
+            { email: { contains: searchTerm, mode: 'insensitive' } }
+          ]
+        } : {})
       },
       select: {
         id: true,
