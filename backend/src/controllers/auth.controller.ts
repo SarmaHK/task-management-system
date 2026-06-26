@@ -2,43 +2,78 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { AppError } from '../utils/AppError';
+import { prisma } from '../config/database';
+import { SystemLogger } from '../utils/logger';
 
 /**
  * Controller class to handle all authentication HTTP request routing actions
  */
 export class AuthController {
   /**
-   * Registers a new user
+   * Registers a new user access request
    */
   public static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { name, email, password, roleName } = req.body;
+      const { name, email } = req.body;
 
-      const result = await AuthService.registerUser({
-        name,
-        email,
-        password,
-        roleName,
+      if (!name || !name.trim() || !email || !email.trim()) {
+        throw new AppError('Name and email are required fields', 400);
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new AppError('Please enter a valid email address', 400);
+      }
+
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // Check if email already registered as a user
+      const existingUser = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
       });
 
-      const { user, token, refreshToken } = result;
+      if (existingUser) {
+        throw new AppError('A user with this email address already exists', 409);
+      }
 
-      if (refreshToken) {
-        res.cookie('refreshToken', refreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      // Check if access request exists
+      const existingRequest = await prisma.registrationRequest.findUnique({
+        where: { email: normalizedEmail },
+      });
+
+      if (existingRequest) {
+        if (existingRequest.status === 'PENDING') {
+          throw new AppError('Your access request is already pending review.', 400);
+        } else if (existingRequest.status === 'APPROVED') {
+          throw new AppError('Your access request has already been approved. Please sign in.', 400);
+        } else {
+          // If previously rejected, allow them to re-apply by updating status back to PENDING
+          await prisma.registrationRequest.update({
+            where: { email: normalizedEmail },
+            data: {
+              name: name.trim(),
+              status: 'PENDING',
+              createdAt: new Date(),
+            },
+          });
+        }
+      } else {
+        // Create new request
+        await prisma.registrationRequest.create({
+          data: {
+            name: name.trim(),
+            email: normalizedEmail,
+            status: 'PENDING',
+          },
         });
       }
 
+      // Log system activity
+      await SystemLogger.log('REQUEST_SUBMITTED', `Access request submitted by ${name.trim()} (${normalizedEmail})`);
+
       res.status(201).json({
         success: true,
-        message: 'User registered successfully',
-        data: {
-          user,
-          token,
-        },
+        message: 'Access request submitted successfully. The system administrator will review your request.',
       });
     } catch (error) {
       next(error);
@@ -119,6 +154,50 @@ export class AuthController {
   }
 
   /**
+   * Updates profile details of the current logged-in user (Protected Route)
+   */
+  public static async updateProfile(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { name } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        throw new AppError('Unauthorized access', 401);
+      }
+
+      if (!name || !name.trim()) {
+        throw new AppError('Name is required', 400);
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { name: name.trim() },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          status: true,
+          mustChangePassword: true,
+        }
+      });
+
+      // Log activity
+      await SystemLogger.log('USER_PROFILE_UPDATED', `User ${updatedUser.email} updated profile name to: ${updatedUser.name}`);
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile updated successfully',
+        data: {
+          user: updatedUser,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * Changes the password of an authenticated user
    */
   public static async changePassword(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
@@ -165,14 +244,32 @@ export class AuthController {
   }
 
   /**
-   * Reset password flow using a valid token
+   * Verify OTP
+   */
+  public static async verifyOTP(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { email, otp } = req.body;
+      await AuthService.verifyOTP(email, otp);
+
+      res.status(200).json({
+        success: true,
+        message: 'Verification code is valid',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Reset password flow using a valid OTP
    */
   public static async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { token, newPassword } = req.body;
+      const { email, otp, newPassword } = req.body;
 
       await AuthService.resetPassword({
-        token,
+        email,
+        otp,
         newPassword,
       });
 

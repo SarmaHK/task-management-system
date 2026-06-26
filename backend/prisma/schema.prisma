@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -12,7 +12,9 @@ datasource db {
 enum Status {
   TODO
   IN_PROGRESS
+  REVIEW
   COMPLETED
+  BLOCKED
 }
 
 enum Priority {
@@ -49,30 +51,30 @@ enum ActivityType {
   DELETED
 }
 
-// ─── ROLES ───────────────────────────────────────────
-model Role {
-  id          Int     @id @default(autoincrement())
-  name        String  @unique
-  description String?
-
-  users User[]
-
-  @@map("roles")
+enum Role {
+  ADMIN
+  PROJECT_MANAGER
+  COLLABORATOR
 }
 
-// ─── USERS ───────────────────────────────────────────
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
 model User {
-  id               Int       @id @default(autoincrement())
+  id               Int        @id @default(autoincrement())
   name             String
-  email            String    @unique
-  password         String
-  roleId           Int
-  role             Role      @relation(fields: [roleId], references: [id])
-  isActive         Boolean   @default(true)
-  firstLogin       Boolean   @default(true)
+  email            String     @unique
+  passwordHash     String
+  role             Role       @default(COLLABORATOR)
+  status           UserStatus @default(ACTIVE)
+  mustChangePassword Boolean    @default(true)
+  isEmailVerified  Boolean    @default(false)
   resetToken       String?
   resetTokenExpiry DateTime?
-  createdAt        DateTime  @default(now())
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt @default(now())
 
   ownedProjects   Project[]        @relation("OwnedProjects")
   projectMembers  ProjectMember[]
@@ -82,6 +84,7 @@ model User {
   notifications   Notification[]
   attachments     Attachment[]
   taskActivities  TaskActivity[]
+  sentMessages    Message[]        @relation("SentMessages")
 
   @@map("users")
 }
@@ -94,13 +97,18 @@ model Project {
   ownerId     Int
   owner       User          @relation("OwnedProjects", fields: [ownerId], references: [id])
   status      ProjectStatus @default(ACTIVE)
+  startDate   DateTime?
   endDate     DateTime?
+  isDeleted   Boolean       @default(false)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  tasks   Task[]
-  members ProjectMember[]
+  tasks      Task[]
+  members    ProjectMember[]
+  messages   Message[]
+  attachments Attachment[]
 
+  @@index([ownerId])
   @@map("projects")
 }
 
@@ -115,6 +123,7 @@ model ProjectMember {
   joinedAt  DateTime    @default(now())
 
   @@unique([projectId, userId])
+  @@index([userId])
   @@map("project_members")
 }
 
@@ -138,6 +147,8 @@ model Task {
   attachments    Attachment[]
   taskActivities TaskActivity[]
 
+  @@index([projectId])
+  @@index([creatorId])
   @@map("tasks")
 }
 
@@ -145,12 +156,13 @@ model Task {
 model TaskAssignment {
   id         Int      @id @default(autoincrement())
   taskId     Int
-  task       Task     @relation(fields: [taskId], references: [id])
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId     Int
   user       User     @relation(fields: [userId], references: [id])
   assignedAt DateTime @default(now())
 
   @@unique([taskId, userId])
+  @@index([userId])
   @@map("task_assignments")
 }
 
@@ -159,26 +171,37 @@ model Comment {
   id        Int      @id @default(autoincrement())
   content   String
   taskId    Int
-  task      Task     @relation(fields: [taskId], references: [id])
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([taskId])
+  @@index([userId])
   @@map("comments")
 }
 
 // ─── ATTACHMENTS ─────────────────────────────────────
 model Attachment {
-  id        Int      @id @default(autoincrement())
-  filename  String
-  fileUrl   String
-  taskId    Int
-  task      Task     @relation(fields: [taskId], references: [id])
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  filename   String
+  fileUrl    String
+  storageKey String?
+  fileSize   Int      @default(0)
+  mimeType   String?
+  taskId     Int?
+  task       Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  projectId  Int?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt @default(now())
 
+  @@index([taskId])
+  @@index([projectId])
+  @@index([userId])
   @@map("attachments")
 }
 
@@ -193,6 +216,8 @@ model Notification {
   taskId    Int?
   createdAt DateTime         @default(now())
 
+  @@index([userId])
+  @@index([taskId])
   @@map("notifications")
 }
 
@@ -200,12 +225,53 @@ model Notification {
 model TaskActivity {
   id          Int          @id @default(autoincrement())
   taskId      Int
-  task        Task         @relation(fields: [taskId], references: [id])
+  task        Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
   userId      Int
   user        User         @relation(fields: [userId], references: [id])
   action      ActivityType
   description String?
   createdAt   DateTime     @default(now())
 
+  @@index([taskId])
+  @@index([userId])
   @@map("task_activities")
+}
+
+// ─── ACCESS REQUESTS & SYSTEM LOGS ────────────────────
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model RegistrationRequest {
+  id        Int           @id @default(autoincrement())
+  name      String
+  email     String        @unique
+  status    RequestStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+
+  @@map("registration_requests")
+}
+
+model SystemLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  message   String
+  createdAt DateTime @default(now())
+
+  @@map("system_logs")
+}
+
+// ─── MESSAGES ─────────────────────────────────────────
+model Message {
+  id        Int      @id @default(autoincrement())
+  content   String
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id])
+  senderId  Int
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@map("messages")
 }

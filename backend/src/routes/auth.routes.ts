@@ -9,11 +9,13 @@ router.post('/register', AuthController.register);
 router.post('/login', AuthController.login);
 router.post('/logout', AuthController.logout);
 router.post('/forgot-password', AuthController.forgotPassword);
+router.post('/verify-otp', AuthController.verifyOTP);
 router.post('/reset-password', AuthController.resetPassword);
 router.post('/refresh-token', AuthController.refreshToken);
 
 // Protected routes (requires valid JWT token)
 router.get('/me', authenticateUser as any, AuthController.getMe);
+router.put('/profile', authenticateUser as any, AuthController.updateProfile);
 router.put('/change-password', authenticateUser as any, AuthController.changePassword);
 router.post('/first-login-reset', authenticateUser as any, AuthController.firstLoginReset);
 router.get('/test', authenticateUser as any, (req: any, res: any) => {

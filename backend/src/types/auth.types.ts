@@ -15,6 +15,7 @@ export interface AuthUserResponse {
   name: string;
   email: string;
   role: string;
+  mustChangePassword?: boolean;
 }
 
 export interface AuthResponse {
@@ -30,7 +31,8 @@ export interface ChangePasswordInput {
 }
 
 export interface ResetPasswordInput {
-  token: string;
+  email: string;
+  otp: string;
   newPassword?: string;
 }
 

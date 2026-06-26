@@ -2,7 +2,7 @@
  * CreateTask.jsx — Page for creating a new task
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import taskService from '../../services/taskService';
 import TaskForm from '../../components/tasks/TaskForm';
 import DashboardLayout from '../../components/DashboardLayout';
@@ -10,8 +10,11 @@ import { useToast } from '../../utils/ToastContext';
 
 export default function CreateTask() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const toast = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const queryProjectId = searchParams.get('projectId') || '';
 
   const handleSubmit = async (payload) => {
     setIsSubmitting(true);
@@ -46,9 +49,9 @@ export default function CreateTask() {
         </nav>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible">
           {/* Gradient header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 sm:px-8 py-6 text-white">
+          <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 sm:px-8 py-6 text-white rounded-t-2xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -67,6 +70,7 @@ export default function CreateTask() {
           {/* Form body */}
           <div className="px-6 sm:px-8 py-7">
             <TaskForm
+              initialValues={{ projectId: queryProjectId }}
               onSubmit={handleSubmit}
               isSubmitting={isSubmitting}
               submitLabel="Create Task"

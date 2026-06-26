@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import { connectSocket, disconnectSocket } from '../services/socket';
 
 const AuthContext = createContext(null);
 
@@ -37,7 +38,7 @@ export function AuthProvider({ children }) {
           id: u.id,
           name: u.name,
           email: u.email,
-          firstLogin: u.firstLogin,
+          mustChangePassword: u.mustChangePassword,
           role: typeof u.role === 'object' ? u.role.name : u.role,
         });
       } else {
@@ -88,6 +89,18 @@ export function AuthProvider({ children }) {
 
     return () => clearInterval(interval);
   }, [accessToken, refreshSession]);
+
+  // Manage WebSocket connection lifecycle
+  useEffect(() => {
+    if (accessToken) {
+      connectSocket(accessToken);
+    } else {
+      disconnectSocket();
+    }
+    return () => {
+      disconnectSocket();
+    };
+  }, [accessToken]);
 
   // Login action
   const login = async (email, password) => {
@@ -167,8 +180,51 @@ export function AuthProvider({ children }) {
         throw new Error(resData.message || 'Password update failed');
       }
 
-      // Update local user state: user is no longer firstLogin
-      setUser(prev => prev ? { ...prev, firstLogin: false } : null);
+      // Update local user state: user is no longer required to change password
+      setUser(prev => prev ? { ...prev, mustChangePassword: false } : null);
+      return resData;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Update user profile name
+  const updateProfile = async (name) => {
+    if (!accessToken) throw new Error('Unauthenticated');
+    try {
+      const response = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ name }),
+      });
+
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.message || 'Profile update failed');
+      }
+
+      // Update local user state
+      setUser(prev => prev ? { ...prev, name: resData.data.user.name } : null);
+      return resData;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Change user password
+  const changePassword = async (currentPassword, newPassword) => {
+    if (!accessToken) throw new Error('Unauthenticated');
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.message || 'Password update failed');
+      }
       return resData;
     } catch (error) {
       throw error;
@@ -183,6 +239,8 @@ export function AuthProvider({ children }) {
     register,
     logout,
     firstLoginReset,
+    updateProfile,
+    changePassword,
     getAuthHeaders,
   };
 

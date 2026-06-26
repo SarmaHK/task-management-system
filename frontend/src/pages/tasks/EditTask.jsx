@@ -80,6 +80,8 @@ export default function EditTask() {
         priority: task.priority || 'MEDIUM',
         status: task.status || 'TODO',
         dueDate: task.dueDate ? task.dueDate.split('T')[0] : '',
+        projectId: task.projectId || '',
+        assignees: task.assignees || [],
       }
     : {};
 
@@ -152,9 +154,9 @@ export default function EditTask() {
         </nav>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible">
           {/* Gradient header */}
-          <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-6 sm:px-8 py-6 text-white">
+          <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-6 sm:px-8 py-6 text-white rounded-t-2xl">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">

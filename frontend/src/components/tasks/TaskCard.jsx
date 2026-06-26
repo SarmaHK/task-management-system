@@ -4,9 +4,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { STATUS_CONFIG, PRIORITY_CONFIG, formatDate, truncate, relativeTime } from '../../utils/helpers';
+import { useAuth } from '../../context/AuthContext';
 
 export default function TaskCard({ task, onDelete, onStatusChange }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [statusChanging, setStatusChanging] = useState(false);
 
   const status = STATUS_CONFIG[task.status] || STATUS_CONFIG.TODO;
@@ -26,8 +28,8 @@ export default function TaskCard({ task, onDelete, onStatusChange }) {
 
   return (
     <article
-      onClick={() => navigate(`/tasks/edit/${task.id}`)}
-      className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col"
+      onClick={() => navigate(`/tasks/${task.id}`)}
+      className="group bg-white rounded-2xl border border-gray-100 shadow-sm transition-all duration-200 overflow-hidden flex flex-col hover:shadow-xl hover:-translate-y-1 cursor-pointer"
     >
       {/* Top accent bar based on priority */}
       <div
@@ -66,7 +68,8 @@ export default function TaskCard({ task, onDelete, onStatusChange }) {
 
         {/* Footer */}
         <div className="pt-3 border-t border-gray-50 flex items-center justify-between gap-2 flex-wrap">
-          {/* Status badge — clickable to cycle */}
+          
+          {/* Status badge — Collaborators ARE allowed to click this based on your team's rules, so we leave it alone! */}
           <button
             onClick={handleStatusCycle}
             disabled={statusChanging}
@@ -93,19 +96,21 @@ export default function TaskCard({ task, onDelete, onStatusChange }) {
               {relativeTime(task.createdAt)}
             </span>
 
-            {/* Delete button */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(task);
-              }}
-              className="opacity-0 group-hover:opacity-100 transition-all duration-150 text-gray-300 hover:text-red-500 cursor-pointer p-1 rounded-lg hover:bg-red-50"
-              title="Delete task"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </button>
+            {/* 3. CONDITIONAL RENDERING: Hide the Delete button completely from Collaborators */}
+            {user?.role !== 'Collaborator' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(task);
+                }}
+                className="opacity-0 group-hover:opacity-100 transition-all duration-150 text-gray-300 hover:text-red-500 cursor-pointer p-1 rounded-lg hover:bg-red-50"
+                title="Delete task"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>

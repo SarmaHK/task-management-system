@@ -1,10 +1,11 @@
 /**
- * TaskStats.jsx — Summary statistics dashboard cards
+ * TaskStats.jsx — Summary statistics dashboard cards (Clickable to Filter)
  */
-export default function TaskStats({ stats, loading }) {
+export default function TaskStats({ stats, loading, statusFilter, onFilterChange }) {
   const cards = [
     {
       label: 'Total Tasks',
+      statusValue: 'ALL',
       value: stats.total,
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -17,6 +18,7 @@ export default function TaskStats({ stats, loading }) {
     },
     {
       label: 'Pending',
+      statusValue: 'TODO',
       value: stats.pending,
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -29,6 +31,7 @@ export default function TaskStats({ stats, loading }) {
     },
     {
       label: 'In Progress',
+      statusValue: 'IN_PROGRESS',
       value: stats.inProgress,
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -41,6 +44,7 @@ export default function TaskStats({ stats, loading }) {
     },
     {
       label: 'Completed',
+      statusValue: 'COMPLETED',
       value: stats.completed,
       icon: (
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -68,28 +72,36 @@ export default function TaskStats({ stats, loading }) {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {cards.map((card, i) => (
-        <div
-          key={card.label}
-          className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-          style={{ animationDelay: `${i * 0.07}s` }}
-        >
-          {/* Icon */}
-          <div className={`w-12 h-12 rounded-xl ${card.bg} ${card.text} flex items-center justify-center flex-shrink-0`}>
-            {card.icon}
-          </div>
+      {cards.map((card, i) => {
+        const isActive = statusFilter === card.statusValue;
+        return (
+          <div
+            key={card.label}
+            onClick={() => onFilterChange && onFilterChange(card.statusValue)}
+            className={`bg-white rounded-2xl border p-5 flex items-center gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer ${
+              isActive 
+                ? 'border-indigo-500 ring-2 ring-indigo-500/10 shadow-sm bg-indigo-50/10' 
+                : 'border-gray-100 hover:border-indigo-200'
+            }`}
+            style={{ animationDelay: `${i * 0.07}s` }}
+          >
+            {/* Icon */}
+            <div className={`w-12 h-12 rounded-xl ${card.bg} ${card.text} flex items-center justify-center flex-shrink-0`}>
+              {card.icon}
+            </div>
 
-          {/* Text */}
-          <div>
-            <p className="text-[11.5px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">
-              {card.label}
-            </p>
-            <p className="text-[28px] font-extrabold text-gray-900 leading-none">
-              {card.value}
-            </p>
+            {/* Text */}
+            <div>
+              <p className="text-[11.5px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">
+                {card.label}
+              </p>
+              <p className="text-[28px] font-extrabold text-gray-900 leading-none">
+                {card.value}
+              </p>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

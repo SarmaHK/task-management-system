@@ -22,14 +22,14 @@ export default function ProtectedRoute({ allowedRoles }) {
   }
 
   // Force password reset if it's the user's first login
-  if (user.firstLogin) {
+  if (user.mustChangePassword) {
     return <Navigate to="/setup-password" replace />;
   }
 
   // Check role authorization (case-insensitive)
   if (allowedRoles && allowedRoles.length > 0) {
-    const userRole = (user.role || '').toLowerCase();
-    const hasRole = allowedRoles.some(role => role.toLowerCase() === userRole);
+    const userRole = (user.role || '').toUpperCase();
+    const hasRole = allowedRoles.some(role => role.toUpperCase() === userRole);
 
     if (!hasRole) {
       // If unauthorized, redirect to standard landing page (dashboard)

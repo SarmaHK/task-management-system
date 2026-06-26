@@ -2,7 +2,9 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
-import { generateAccessToken, generateRefreshToken, verifyToken } from '../utils/jwt';
+import { generateAccessToken, generateRefreshToken, verifyToken, verifyRefreshToken } from '../utils/jwt';
+import { EmailService } from './email.service';
+import { Role, UserStatus } from '@prisma/client';
 import {
   RegisterInput,
   LoginInput,
@@ -12,12 +14,7 @@ import {
   FirstLoginResetInput
 } from '../types/auth.types';
 
-// Password validation regex rules matching the api-planning.md specs:
-// - Minimum 8 characters
-// - At least one uppercase letter
-// - At least one lowercase letter
-// - At least one number
-// - At least one special character
+// Password validation regex rules:
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
 /**
@@ -47,15 +44,8 @@ export class AuthService {
       throw new AppError('A user with this email address already exists', 409);
     }
 
-    // 3. Resolve role (defaults to 'Collaborator')
-    const targetRoleName = roleName || 'Collaborator';
-    const role = await prisma.role.findUnique({
-      where: { name: targetRoleName },
-    });
-
-    if (!role) {
-      throw new AppError(`Role '${targetRoleName}' does not exist in the system`, 400);
-    }
+    // 3. Resolve role (defaults to COLLABORATOR)
+    const targetRole = roleName ? (roleName as Role) : Role.COLLABORATOR;
 
     // 4. Hash the password
     const salt = await bcrypt.genSalt(10);
@@ -66,15 +56,9 @@ export class AuthService {
       data: {
         name,
         email: email.toLowerCase(),
-        password: hashedPassword,
-        roleId: role.id,
-      },
-      include: {
-        role: {
-          select: {
-            name: true,
-          },
-        },
+        passwordHash: hashedPassword,
+        role: targetRole,
+        status: UserStatus.ACTIVE,
       },
     });
 
@@ -82,7 +66,7 @@ export class AuthService {
     const token = generateAccessToken({
       userId: newUser.id,
       email: newUser.email,
-      role: newUser.role.name,
+      role: newUser.role,
     });
     const refreshToken = generateRefreshToken({
       userId: newUser.id,
@@ -93,7 +77,8 @@ export class AuthService {
         id: newUser.id,
         name: newUser.name,
         email: newUser.email,
-        role: newUser.role.name,
+        role: newUser.role,
+        mustChangePassword: newUser.mustChangePassword,
       },
       token,
       refreshToken,
@@ -109,13 +94,6 @@ export class AuthService {
     // 1. Find user by email
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
-      include: {
-        role: {
-          select: {
-            name: true,
-          },
-        },
-      },
     });
 
     // 2. User exists check
@@ -124,12 +102,12 @@ export class AuthService {
     }
 
     // 3. Status check
-    if (!user.isActive) {
+    if (user.status !== UserStatus.ACTIVE) {
       throw new AppError('Your account has been deactivated', 403);
     }
 
     // 4. Verify password
-    const isMatch = await bcrypt.compare(password, user.password);
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       throw new AppError('Invalid email or password', 401);
     }
@@ -138,7 +116,7 @@ export class AuthService {
     const token = generateAccessToken({
       userId: user.id,
       email: user.email,
-      role: user.role.name,
+      role: user.role,
     });
     const refreshToken = generateRefreshToken({
       userId: user.id,
@@ -149,7 +127,8 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role.name,
+        role: user.role,
+        mustChangePassword: user.mustChangePassword,
       },
       token,
       refreshToken,
@@ -181,7 +160,7 @@ export class AuthService {
       throw new AppError('User not found', 404);
     }
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isMatch) {
       throw new AppError('Current password is incorrect', 401);
     }
@@ -191,7 +170,7 @@ export class AuthService {
 
     await prisma.user.update({
       where: { id: userId },
-      data: { password: hashedPassword },
+      data: { passwordHash: hashedPassword },
     });
   }
 
@@ -211,32 +190,60 @@ export class AuthService {
       throw new AppError('User not found', 404);
     }
 
-    // Generate random hex reset token
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const expiry = new Date(Date.now() + 3600000); // 1 hour validity
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes validity
 
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        resetToken: rawToken,
+        resetToken: otp,
         resetTokenExpiry: expiry,
       },
     });
 
     // Output for development to console
-    console.log(`[DEV ONLY] Password reset token for ${email}: ${rawToken}`);
+    console.log(`[DEV ONLY] Password reset OTP for ${email}: ${otp}`);
 
-    return rawToken;
+    // Send email
+    await EmailService.sendForgotPasswordEmail(user.name, user.email, otp);
+
+    return otp;
+  }
+
+  /**
+   * Verifies an OTP for password reset
+   */
+  public static async verifyOTP(email: string, otp: string): Promise<boolean> {
+    if (!email || !otp) {
+      throw new AppError('Email and verification code are required', 400);
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        email: email.toLowerCase(),
+        resetToken: otp,
+        resetTokenExpiry: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (!user) {
+      throw new AppError('Invalid or expired verification code', 400);
+    }
+
+    return true;
   }
 
   /**
    * Resets password using a reset token
    */
   public static async resetPassword(input: ResetPasswordInput): Promise<void> {
-    const { token, newPassword } = input;
+    const { email, otp, newPassword } = input;
 
-    if (!token || !newPassword) {
-      throw new AppError('Token and new password are required', 400);
+    if (!email || !otp || !newPassword) {
+      throw new AppError('Email, verification code, and new password are required', 400);
     }
 
     if (!PASSWORD_REGEX.test(newPassword)) {
@@ -248,7 +255,8 @@ export class AuthService {
 
     const user = await prisma.user.findFirst({
       where: {
-        resetToken: token,
+        email: email.toLowerCase(),
+        resetToken: otp,
         resetTokenExpiry: {
           gt: new Date(),
         },
@@ -256,7 +264,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new AppError('Invalid or expired reset token', 400);
+      throw new AppError('Invalid or expired verification code', 400);
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -265,7 +273,7 @@ export class AuthService {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         resetToken: null,
         resetTokenExpiry: null,
       },
@@ -297,11 +305,11 @@ export class AuthService {
       throw new AppError('User not found', 404);
     }
 
-    if (!user.firstLogin) {
+    if (!user.mustChangePassword) {
       throw new AppError('First login password reset has already been completed', 400);
     }
 
-    const isMatch = await bcrypt.compare(temporaryPassword, user.password);
+    const isMatch = await bcrypt.compare(temporaryPassword, user.passwordHash);
     if (!isMatch) {
       throw new AppError('Invalid temporary password', 401);
     }
@@ -312,8 +320,8 @@ export class AuthService {
     await prisma.user.update({
       where: { id: userId },
       data: {
-        password: hashedPassword,
-        firstLogin: false,
+        passwordHash: hashedPassword,
+        mustChangePassword: false,
       },
     });
   }
@@ -328,7 +336,7 @@ export class AuthService {
 
     let decoded: any;
     try {
-      decoded = verifyToken(token);
+      decoded = verifyRefreshToken(token);
     } catch (err) {
       throw new AppError('Invalid or expired refresh token', 401);
     }
@@ -339,20 +347,13 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      include: {
-        role: {
-          select: {
-            name: true,
-          },
-        },
-      },
     });
 
     if (!user) {
       throw new AppError('User no longer exists', 401);
     }
 
-    if (!user.isActive) {
+    if (user.status !== UserStatus.ACTIVE) {
       throw new AppError('User account is deactivated', 403);
     }
 
@@ -360,7 +361,7 @@ export class AuthService {
     const accessToken = generateAccessToken({
       userId: user.id,
       email: user.email,
-      role: user.role.name,
+      role: user.role,
     });
 
     return accessToken;
