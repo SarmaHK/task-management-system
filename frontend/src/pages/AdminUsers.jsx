@@ -1,9 +1,66 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import adminService from '../services/adminService';
 import { useToast } from '../utils/ToastContext';
 import ConfirmModal from '../components/ConfirmModal';
+
+const CustomRoleSelect = ({ value, onChange, disabled, variant = 'form' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (selectRef.current && !selectRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  const options = [
+    { value: '3', label: 'Collaborator' },
+    { value: '2', label: 'Project Manager' },
+    { value: '1', label: 'Administrator' }
+  ];
+
+  const selectedOption = options.find(o => o.value === String(value));
+
+  const formClass = `px-4 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl text-[14px] text-gray-900 dark:text-white focus:outline-none flex items-center justify-between transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[#118B95]'} ${isOpen ? 'ring-2 ring-[#118B95] border-transparent' : ''}`;
+  const tableClass = `text-[13px] font-semibold text-[#0D5A60] dark:text-[#2AA7B3] bg-[#E6F5F6] dark:bg-[#118B95]/10 px-2 py-1 rounded-lg border border-[#BEE3E6] dark:border-[#118B95]/30 flex items-center justify-between gap-2 transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[#118B95]'} ${isOpen ? 'ring-2 ring-[#118B95]/50' : ''}`;
+
+  return (
+    <div className="relative" ref={selectRef}>
+      <div 
+        className={variant === 'form' ? formClass : tableClass}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+      >
+        <span>{selectedOption?.label}</span>
+        <svg className={`w-3 h-3 text-current transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+      
+      {isOpen && (
+        <div className={`absolute z-50 mt-1 bg-white border border-gray-150 rounded-xl shadow-xl overflow-hidden ${variant === 'table' ? 'w-44 left-0' : 'w-full'}`}>
+          {options.map((opt) => (
+            <div
+              key={opt.value}
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+              className={`px-4 py-2.5 hover:bg-[#E6F5F6]/50 cursor-pointer transition-colors text-[13px] font-medium text-[#052D30] ${String(value) === opt.value ? 'bg-[#E6F5F6]/20' : ''}`}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function AdminUsers() {
   const location = useLocation();
@@ -373,16 +430,12 @@ export default function AdminUsers() {
                         <div className="text-gray-500 dark:text-slate-400 text-[13px]">{u.email}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <select
+                        <CustomRoleSelect
                           value={u.role.id}
-                          onChange={(e) => handleRoleChange(u.id, parseInt(e.target.value))}
+                          onChange={(val) => handleRoleChange(u.id, parseInt(val))}
                           disabled={!u.isActive} 
-                          className="text-[13px] font-semibold text-[#0D5A60] dark:text-[#2AA7B3] bg-[#E6F5F6] dark:bg-[#118B95]/10 px-2 py-1 rounded-lg border border-indigo-100 dark:border-[#118B95]/30 cursor-pointer focus:outline-none disabled:opacity-50"
-                        >
-                          <option value={1}>Administrator</option>
-                          <option value={2}>Project Manager</option>
-                          <option value={3}>Collaborator</option>
-                        </select>
+                          variant="table"
+                        />
                       </td>
                       <td className="px-6 py-4">
                         <span className={`text-[12px] font-bold px-2.5 py-1 rounded-full border ${u.isActive ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800'}`}>
@@ -459,15 +512,11 @@ export default function AdminUsers() {
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[13px] font-bold text-indigo-950 dark:text-slate-300">System Role</label>
-                    <select
+                    <CustomRoleSelect
                       value={roleId}
-                      onChange={(e) => setRoleId(e.target.value)}
-                      className="px-4 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl text-[14px] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#118B95]"
-                    >
-                      <option value="3">Collaborator</option>
-                      <option value="2">Project Manager</option>
-                      <option value="1">Administrator</option>
-                    </select>
+                      onChange={(val) => setRoleId(val)}
+                      variant="form"
+                    />
                   </div>
 
                   <button
@@ -533,15 +582,11 @@ export default function AdminUsers() {
               <form onSubmit={handleApproveConfirm} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[13px] font-bold text-indigo-950 dark:text-slate-300">Assign System Role</label>
-                  <select
+                  <CustomRoleSelect
                     value={approveRoleId}
-                    onChange={(e) => setApproveRoleId(e.target.value)}
-                    className="px-4 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl text-[14px] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#118B95]"
-                  >
-                    <option value="3">Collaborator</option>
-                    <option value="2">Project Manager</option>
-                    <option value="1">Administrator</option>
-                  </select>
+                    onChange={(val) => setApproveRoleId(val)}
+                    variant="form"
+                  />
                 </div>
 
                 <div className="flex gap-3 mt-2">

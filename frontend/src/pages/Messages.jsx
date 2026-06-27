@@ -19,9 +19,15 @@ export default function Messages() {
       try {
         const res = await projectService.getAllProjects();
         if (res.success) {
-          setProjects(res.data);
-          if (res.data.length > 0) {
-            setActiveProject(res.data[0]);
+          let filtered = res.data;
+          if (user?.role !== 'ADMIN') {
+            filtered = res.data.filter(proj => 
+              proj.owner?.id === user?.id || proj.members?.some(m => m.userId === user?.id)
+            );
+          }
+          setProjects(filtered);
+          if (filtered.length > 0) {
+            setActiveProject(filtered[0]);
           }
         }
       } catch (error) {

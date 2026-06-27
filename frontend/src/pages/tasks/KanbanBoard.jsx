@@ -169,7 +169,7 @@ export default function KanbanBoard() {
       <div className="min-h-[calc(100vh-64px)] bg-[#F7F8F9] dark:bg-slate-900 flex flex-col transition-colors duration-200">
         
         {/* ── Page Header ─────────────────────────────────────────── */}
-        <div className="px-6 pt-6 pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeUp">
+        <div className="px-6 pt-6 pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeUp relative z-50">
           <div>
             <div className="flex items-center gap-3 mb-1">
               <div className="w-10 h-10 rounded-xl bg-[#0D5A60] dark:bg-slate-800 flex items-center justify-center shadow-lg shadow-[#0D5A60]/20 dark:shadow-black/20">

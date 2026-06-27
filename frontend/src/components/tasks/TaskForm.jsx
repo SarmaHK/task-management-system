@@ -1,9 +1,10 @@
 /**
  * TaskForm.jsx — Reusable form used by both CreateTask and EditTask pages
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import projectService from '../../services/projectService';
 import taskService from '../../services/taskService';
+import { useAuth } from '../../context/AuthContext';
 
 const STATUSES = [
   { value: 'BACKLOG', label: '📝 Backlog' },
@@ -35,6 +36,8 @@ export default function TaskForm({
   showStatus = false,
   showProjectId = false,
 }) {
+  const { user } = useAuth();
+  
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -48,28 +51,14 @@ export default function TaskForm({
 
   const [projects, setProjects] = useState([]);
   const [projectMembers, setProjectMembers] = useState([]);
-  const [allCollaborators, setAllCollaborators] = useState([]);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const projectDropdownRef = useRef(null);
 
-  // Fetch all active collaborators in the system
-  useEffect(() => {
-    const fetchCollaborators = async () => {
-      try {
-        const res = await taskService.getCollaborators();
-        if (res.success) {
-          setAllCollaborators(res.data || []);
-        }
-      } catch (err) {
-        console.error('Error fetching system collaborators for form:', err);
-      }
-    };
-    fetchCollaborators();
-  }, []);
-
-  // Unified list of assignable users (merging project members and system collaborators)
+  // List of assignable users (only project members)
   const getAssignableUsers = () => {
     const map = new Map();
 
@@ -84,25 +73,17 @@ export default function TaskForm({
       }
     });
 
-    // 2. Add system collaborators
-    allCollaborators.forEach((c) => {
-      if (!map.has(c.id)) {
-        map.set(c.id, {
-          userId: c.id,
-          name: c.name,
-          email: c.email,
-        });
-      }
-    });
-
     return Array.from(map.values());
   };
 
-  // Click-outside listener to auto-close collaborator search dropdown
+  // Click-outside listener to auto-close dropdowns
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (!e.target.closest('.collaborator-search-container')) {
         setDropdownOpen(false);
+      }
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target)) {
+        setProjectDropdownOpen(false);
       }
     };
     document.addEventListener('click', handleOutsideClick);
@@ -229,29 +210,69 @@ export default function TaskForm({
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
       
       {/* Project Selector — only in create mode */}
-      {showProjectId && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[13px] font-bold text-gray-700 flex items-center gap-1">
-            Project Workspace <span className="text-red-500">*</span>
-          </label>
-          <select
-            id="task-project-id"
-            name="projectId"
-            value={form.projectId}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            className={`${inputBase} ${touched.projectId && errors.projectId ? inputError : inputNormal} cursor-pointer`}
-          >
-            <option value="">-- Select Project Workspace --</option>
-            {projects.map((proj) => (
-              <option key={proj.id} value={proj.id}>{proj.name}</option>
-            ))}
-          </select>
-          {touched.projectId && errors.projectId && (
-            <p className="text-[12px] text-red-500 font-medium">{errors.projectId}</p>
-          )}
-        </div>
-      )}
+      {showProjectId && (() => {
+        const filteredProjects = projects.filter((proj) => {
+          if (user?.role === 'ADMIN') return true;
+          return proj.owner?.id === user?.id || proj.members?.some(m => m.userId === user?.id);
+        });
+        
+        return (
+          <div className="flex flex-col gap-1.5" ref={projectDropdownRef}>
+            <label className="text-[13px] font-bold text-gray-700 flex items-center gap-1">
+              Project Workspace <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div 
+                className={`${inputBase} flex items-center justify-between cursor-pointer ${touched.projectId && errors.projectId ? inputError : inputNormal}`}
+                onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
+              >
+                <span className={form.projectId ? 'text-gray-800' : 'text-gray-400'}>
+                  {form.projectId ? filteredProjects.find(p => p.id == form.projectId)?.name || '-- Select Project Workspace --' : '-- Select Project Workspace --'}
+                </span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${projectDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              
+              {projectDropdownOpen && (
+                <div className="absolute z-50 w-full mt-1.5 bg-white border border-gray-150 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                  <div 
+                    className="px-4 py-3 hover:bg-[#E6F5F6]/50 cursor-pointer transition-colors text-[13px] font-medium text-gray-400 border-b border-gray-100"
+                    onClick={() => {
+                      setForm(prev => ({ ...prev, projectId: '' }));
+                      setTouched(prev => ({ ...prev, projectId: true }));
+                      setProjectDropdownOpen(false);
+                    }}
+                  >
+                    -- Select Project Workspace --
+                  </div>
+                  {filteredProjects.map((proj) => (
+                    <div
+                      key={proj.id}
+                      onClick={() => {
+                        setForm(prev => ({ ...prev, projectId: proj.id }));
+                        setErrors(prev => ({ ...prev, projectId: undefined }));
+                        setProjectDropdownOpen(false);
+                      }}
+                      className={`px-4 py-3 hover:bg-[#E6F5F6]/50 cursor-pointer transition-colors text-[13px] font-medium text-[#052D30] ${form.projectId == proj.id ? 'bg-[#E6F5F6]/20' : ''}`}
+                    >
+                      {proj.name}
+                    </div>
+                  ))}
+                  {filteredProjects.length === 0 && (
+                    <div className="px-4 py-3 text-[13px] font-medium text-gray-400 italic">
+                      No projects available
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {touched.projectId && errors.projectId && (
+              <p className="text-[12px] text-red-500 font-medium">{errors.projectId}</p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Title */}
       <div className="flex flex-col gap-1.5">
@@ -388,6 +409,7 @@ export default function TaskForm({
               <div className="relative flex items-center">
                 <input
                   type="text"
+                  autoComplete="off"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);

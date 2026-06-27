@@ -31,7 +31,7 @@ export default function ForceResetPassword() {
     ? 'border-red-300   focus:border-red-400   focus:shadow-[0_0_0_3px_rgba(239,68,68,0.12)]'
     : passwordsMatch
     ? 'border-emerald-300 focus:border-emerald-400 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.12)]'
-    : 'border-gray-200  focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.12)]';
+    : 'border-gray-200  focus:border-[#118B95] focus:shadow-[0_0_0_3px_rgba(17,139,149,0.12)]';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -83,60 +83,27 @@ export default function ForceResetPassword() {
         </div>
       )}
 
-      {/* ── Left indigo panel (desktop only) ───────────────────── */}
-      <div
-        className="hidden lg:flex flex-col justify-between w-1/2 flex-shrink-0 relative overflow-hidden px-12 py-12"
-        style={{ background: 'linear-gradient(145deg,#1e1b4b 0%,#312e81 55%,#4338ca 100%)' }}
-      >
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage: `linear-gradient(to right,rgba(99,102,241,0.07) 1px,transparent 1px),linear-gradient(to bottom,rgba(99,102,241,0.07) 1px,transparent 1px)`,
-            backgroundSize: '40px 40px',
-          }}
+      {/* ── Left panel (desktop only) ───────────────────── */}
+      <div className="hidden lg:flex relative w-1/2 flex-shrink-0 bg-[#0D5A60] overflow-hidden">
+        {/* Background image fills the entire panel */}
+        <img
+          src="/Logincard.png"
+          alt="TaskFlow Dashboard Preview"
+          className="absolute inset-0 w-full h-full object-cover object-center"
         />
 
-        <div className="relative z-10 flex items-center gap-2.5">
+        {/* Subtle dark gradient overlay at top and bottom for text legibility */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0D5A60]/70 via-transparent to-[#0D5A60]/80" />
+
+        {/* Top Label */}
+        <div className="absolute top-6 left-6 z-10 flex items-center gap-2.5">
           <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
-            <rect x="0"  y="0"  width="12" height="12" rx="3" fill="#6366f1"/>
-            <rect x="16" y="0"  width="12" height="12" rx="3" fill="#818cf8" opacity="0.7"/>
-            <rect x="0"  y="16" width="12" height="12" rx="3" fill="#818cf8" opacity="0.5"/>
-            <rect x="16" y="16" width="12" height="12" rx="3" fill="#6366f1" opacity="0.9"/>
+            <rect x="0"  y="0"  width="12" height="12" rx="3" fill="#118B95"/>
+            <rect x="16" y="0"  width="12" height="12" rx="3" fill="#2AA7B3" opacity="0.7"/>
+            <rect x="0"  y="16" width="12" height="12" rx="3" fill="#2AA7B3" opacity="0.5"/>
+            <rect x="16" y="16" width="12" height="12" rx="3" fill="#118B95" opacity="0.9"/>
           </svg>
-          <span className="text-[15px] font-semibold text-white tracking-tight">TaskFlow</span>
-        </div>
-
-        <div className="relative z-10 flex-1 flex flex-col justify-center pt-12">
-          <h1 className="text-[clamp(34px,3.2vw,50px)] font-semibold text-indigo-100 leading-tight tracking-tight mb-4 animate-fadeUp">
-            Keep your<br/>
-            <span className="italic text-indigo-300" style={{fontFamily:"'Instrument Serif',serif"}}>
-              account secure.
-            </span>
-          </h1>
-          <p className="text-[14px] text-indigo-300 leading-relaxed max-w-[340px] mb-9 animate-fadeUp" style={{ animationDelay: '0.1s' }}>
-            You're signing in with a temporary password. Set a strong new password to protect your account and access the platform.
-          </p>
-
-          <div className="flex flex-col gap-4 animate-fadeUp" style={{ animationDelay: '0.2s' }}>
-            {[
-              { icon: '🔒', text: 'Use a unique password not used elsewhere' },
-              { icon: '🔡', text: 'Mix uppercase, numbers & special characters' },
-              { icon: '🚫', text: 'Never share your password with anyone' },
-            ].map((tip) => (
-              <div key={tip.text} className="flex items-center gap-3.5">
-                <span className="text-[16px]">{tip.icon}</span>
-                <span className="text-[13.5px] text-indigo-200">{tip.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative z-10 flex items-center gap-2 px-3.5 py-2 rounded-full border border-indigo-400/25 self-start mt-8 animate-fadeUp" style={{ background: 'rgba(99,102,241,0.2)', animationDelay: '0.3s' }}>
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-            <path d="M8 1.5L14 4v4c0 3.5-2.5 6-6 7C2.5 14 0 11.5 0 8V4L8 1.5z" stroke="#a5b4fc" strokeWidth="1.2" strokeLinejoin="round" />
-            <path d="M5 8l2 2 4-4" stroke="#a5b4fc" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="text-[12px] text-indigo-200">This session is encrypted and secure</span>
+          <span className="text-white font-bold text-[15px] tracking-wide drop-shadow-md">TaskFlow Workspace</span>
         </div>
       </div>
 
@@ -146,10 +113,10 @@ export default function ForceResetPassword() {
 
           <div className="flex items-center gap-2.5 mb-6 lg:hidden">
             <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
-              <rect x="0"  y="0"  width="12" height="12" rx="3" fill="#6366f1"/>
-              <rect x="16" y="0"  width="12" height="12" rx="3" fill="#818cf8" opacity="0.7"/>
-              <rect x="0"  y="16" width="12" height="12" rx="3" fill="#818cf8" opacity="0.5"/>
-              <rect x="16" y="16" width="12" height="12" rx="3" fill="#6366f1" opacity="0.9"/>
+              <rect x="0"  y="0"  width="12" height="12" rx="3" fill="#118B95"/>
+              <rect x="16" y="0"  width="12" height="12" rx="3" fill="#2AA7B3" opacity="0.7"/>
+              <rect x="0"  y="16" width="12" height="12" rx="3" fill="#2AA7B3" opacity="0.5"/>
+              <rect x="16" y="16" width="12" height="12" rx="3" fill="#118B95" opacity="0.9"/>
             </svg>
             <span className="text-[15px] font-semibold text-gray-900 tracking-tight">TaskFlow</span>
           </div>
@@ -163,7 +130,7 @@ export default function ForceResetPassword() {
           </div>
 
           <div className="mb-7">
-            <h2 className="text-[26px] font-bold text-indigo-950 dark:text-white tracking-tight leading-tight mb-1.5">
+            <h2 className="text-[26px] font-bold text-[#0D5A60] dark:text-white tracking-tight leading-tight mb-1.5">
               Set your password
             </h2>
             <p className="text-[13.5px] text-gray-500 font-medium">
@@ -319,7 +286,7 @@ export default function ForceResetPassword() {
               className={`relative mt-2 w-full py-[11.5px] text-[14.5px] font-bold text-white rounded-[10px] border-none cursor-pointer tracking-tight transition-all duration-150 disabled:opacity-75 disabled:cursor-not-allowed ${
                 success 
                   ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-[0_2px_12px_rgba(5,150,105,0.35)]' 
-                  : 'bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-[0_2px_12px_rgba(99,102,241,0.30)] hover:shadow-[0_4px_20px_rgba(99,102,241,0.40)]'
+                  : 'bg-gradient-to-r from-[#118B95] to-[#0D5A60] hover:from-[#0D5A60] hover:to-[#094246] shadow-[0_2px_12px_rgba(17,139,149,0.30)] hover:shadow-[0_4px_20px_rgba(17,139,149,0.40)]'
               }`}
             >
               {isLoading ? (
