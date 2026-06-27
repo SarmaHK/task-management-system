@@ -18,6 +18,7 @@ export default function ProjectDetails() {
   const [tasks, setTasks] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedUserName, setSelectedUserName] = useState('');
@@ -43,6 +44,9 @@ export default function ProjectDetails() {
       }
     } catch (err) {
       console.error('Error fetching project data:', err);
+      if (err.response?.status === 403) {
+        setAccessDenied(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -138,6 +142,30 @@ export default function ProjectDetails() {
     return (
       <DashboardLayout>
         <div className="text-center py-20 text-gray-400 font-medium text-[15px]">Loading workspace details...</div>
+      </DashboardLayout>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center py-20 text-center animate-fadeUp">
+          <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-extrabold text-indigo-950 mb-2">Access Denied</h2>
+          <p className="text-gray-500 font-medium max-w-md mb-6">
+            You don't have access to this project. Please contact the project owner or administrator to request access.
+          </p>
+          <button
+            onClick={() => navigate('/projects')}
+            className="px-6 py-2.5 bg-[#118B95] hover:bg-[#0D5A60] text-white font-bold rounded-xl transition-all"
+          >
+            Return to Workspaces
+          </button>
+        </div>
       </DashboardLayout>
     );
   }
