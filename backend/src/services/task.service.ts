@@ -221,11 +221,13 @@ export class TaskService {
 
       // Send socket notifications to assignees
       for (const uid of assigneeIds) {
-        await SocketService.sendNotification(uid, {
-          message: `You have been assigned to task "${task.title}"`,
-          type: 'TASK_ASSIGNED',
-          taskId: task.id,
-        });
+        if (uid !== creatorId) {
+          await SocketService.sendNotification(uid, {
+            message: `You have been assigned to task "${task.title}"`,
+            type: 'TASK_ASSIGNED',
+            taskId: task.id,
+          });
+        }
       }
     }
 
@@ -239,15 +241,8 @@ export class TaskService {
       },
     });
 
-    // 11. Send notifications to task creator and all project members
+    // 11. Send notifications to all project members
     try {
-      // Notify creator/manager
-      await SocketService.sendNotification(creatorId, {
-        message: `Task "${task.title}" was created successfully`,
-        type: 'TASK_CREATED',
-        taskId: task.id,
-      });
-
       // Notify other project members
       const projectWithMembers = await prisma.project.findUnique({
         where: { id: projectId },
@@ -462,11 +457,13 @@ export class TaskService {
 
         // Notify new/all assignees about task assignment
         for (const uid of assigneeIds) {
-          await SocketService.sendNotification(uid, {
-            message: `You are assigned to task "${updatedTask.title}"`,
-            type: 'TASK_ASSIGNED',
-            taskId,
-          });
+          if (uid !== userId) {
+            await SocketService.sendNotification(uid, {
+              message: `You are assigned to task "${updatedTask.title}"`,
+              type: 'TASK_ASSIGNED',
+              taskId,
+            });
+          }
         }
       }
 

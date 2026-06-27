@@ -37,11 +37,7 @@ export class ProjectService {
       },
     });
 
-    // Send socket notification
-    await SocketService.sendNotification(data.ownerId, {
-      message: `Project "${project.name}" was created successfully`,
-      type: 'PROJECT_CREATED',
-    });
+
 
     // Notify all ADMIN users
     try {
@@ -198,14 +194,16 @@ export class ProjectService {
     });
 
     for (const member of members) {
-      await SocketService.sendNotification(member.userId, {
-        message: data.status === 'ARCHIVED' 
-          ? `Project "${updatedProject.name}" was archived`
-          : data.status === 'COMPLETED'
-          ? `Project "${updatedProject.name}" was marked as completed`
-          : `Project "${updatedProject.name}" was updated`,
-        type: 'PROJECT_UPDATED',
-      });
+      if (member.userId !== userId) {
+        await SocketService.sendNotification(member.userId, {
+          message: data.status === 'ARCHIVED' 
+            ? `Project "${updatedProject.name}" was archived`
+            : data.status === 'COMPLETED'
+            ? `Project "${updatedProject.name}" was marked as completed`
+            : `Project "${updatedProject.name}" was updated`,
+          type: 'PROJECT_UPDATED',
+        });
+      }
     }
 
     return updatedProject;
