@@ -254,19 +254,33 @@ export class TaskService {
         include: { members: true },
       });
 
+      const recipientIds = new Set<number>();
+
       if (projectWithMembers) {
         for (const member of projectWithMembers.members) {
           if (member.userId !== creatorId) {
             const isAssignee = assigneeIds?.includes(member.userId);
             if (!isAssignee) {
-              await SocketService.sendNotification(member.userId, {
-                message: `New task "${task.title}" has been created in project "${projectWithMembers.name}"`,
-                type: 'TASK_CREATED',
-                taskId: task.id,
-              });
+              recipientIds.add(member.userId);
             }
           }
         }
+      }
+
+      // Also notify all ADMIN users
+      const admins = await prisma.user.findMany({ where: { role: Role.ADMIN }, select: { id: true } });
+      admins.forEach(admin => {
+        if (admin.id !== creatorId) {
+          recipientIds.add(admin.id);
+        }
+      });
+
+      for (const rId of recipientIds) {
+        await SocketService.sendNotification(rId, {
+          message: `New task "${task.title}" has been created in project "${projectWithMembers?.name}"`,
+          type: 'TASK_CREATED',
+          taskId: task.id,
+        });
       }
     } catch (notificationErr) {
       console.error('[Notification Error] Failed to send task creation notifications:', notificationErr);
@@ -476,23 +490,37 @@ export class TaskService {
       },
     });
 
-    // 11. Notify all project members about the task update
+    // 11. Notify all project members and all admins about the task update
     try {
       const projectWithMembers = await prisma.project.findUnique({
         where: { id: task.projectId },
         include: { members: true },
       });
 
+      const recipientIds = new Set<number>();
+
       if (projectWithMembers) {
         for (const member of projectWithMembers.members) {
           if (member.userId !== userId) {
-            await SocketService.sendNotification(member.userId, {
-              message: `Task "${updatedTask.title}" has been updated`,
-              type: 'ADMIN_UPDATE',
-              taskId: updatedTask.id,
-            });
+            recipientIds.add(member.userId);
           }
         }
+      }
+
+      // Also notify all ADMIN users
+      const admins = await prisma.user.findMany({ where: { role: Role.ADMIN }, select: { id: true } });
+      admins.forEach(admin => {
+        if (admin.id !== userId) {
+          recipientIds.add(admin.id);
+        }
+      });
+
+      for (const rId of recipientIds) {
+        await SocketService.sendNotification(rId, {
+          message: `Task "${updatedTask.title}" has been updated`,
+          type: 'TASK_UPDATED',
+          taskId: updatedTask.id,
+        });
       }
     } catch (notifErr) {
       console.error('[Notification Error] Failed to send task update notifications:', notifErr);
@@ -534,15 +562,29 @@ export class TaskService {
         include: { members: true },
       });
 
+      const recipientIds = new Set<number>();
+
       if (projectWithMembers) {
         for (const member of projectWithMembers.members) {
           if (member.userId !== userId) {
-            await SocketService.sendNotification(member.userId, {
-              message: `Task "${task.title}" was deleted by ${userRole}`,
-              type: 'ADMIN_UPDATE',
-            });
+            recipientIds.add(member.userId);
           }
         }
+      }
+
+      // Also notify all ADMIN users
+      const admins = await prisma.user.findMany({ where: { role: Role.ADMIN }, select: { id: true } });
+      admins.forEach(admin => {
+        if (admin.id !== userId) {
+          recipientIds.add(admin.id);
+        }
+      });
+
+      for (const rId of recipientIds) {
+        await SocketService.sendNotification(rId, {
+          message: `Task "${task.title}" was deleted by ${userRole}`,
+          type: 'ADMIN_UPDATE',
+        });
       }
     } catch (notifErr) {
       console.error('[Notification Error] Failed to send task delete notifications:', notifErr);
@@ -625,6 +667,14 @@ export class TaskService {
       taskWithUsers.assignees.forEach((a) => {
         if (a.userId !== userId) {
           recipientIds.add(a.userId);
+        }
+      });
+
+      // Also notify all ADMIN users
+      const admins = await prisma.user.findMany({ where: { role: Role.ADMIN }, select: { id: true } });
+      admins.forEach(admin => {
+        if (admin.id !== userId) {
+          recipientIds.add(admin.id);
         }
       });
 

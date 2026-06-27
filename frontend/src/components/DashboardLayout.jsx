@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import NotificationPanel from './NotificationPanel';
 import api from '../services/api';
+import { useToast } from '../utils/ToastContext';
 import { subscribeToNotifications, getSocket } from '../services/socket';
 import projectService from '../services/projectService';
 
@@ -108,6 +109,7 @@ export default function DashboardLayout({ children }) {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [hasNewMessage, setHasNewMessage] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     if (location.pathname === '/messages') {
@@ -131,6 +133,7 @@ export default function DashboardLayout({ children }) {
 
     const unsubscribe = subscribeToNotifications((newNotif) => {
       setNotifications((prev) => [newNotif, ...prev]);
+      toast.info(newNotif.message);
     });
 
     const socket = getSocket();
@@ -224,8 +227,16 @@ export default function DashboardLayout({ children }) {
   return (
     <div className="min-h-screen bg-[#F7F8F9] dark:bg-slate-900 flex relative font-sans transition-colors duration-200">
       
-      {/* ── Sidebar (desktop) ── */}
-      <aside className="hidden md:flex flex-col w-64 bg-[#0D5A60] dark:bg-slate-950 fixed top-0 left-0 h-full z-30 overflow-hidden transition-colors duration-200">
+      {/* Mobile Sidebar Backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 md:hidden animate-fade-in"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* ── Sidebar ── */}
+      <aside className={`flex flex-col w-64 bg-[#0D5A60] dark:bg-slate-950 fixed top-0 left-0 h-full z-40 overflow-hidden transition-transform duration-300 md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
 
         {/* ── Professional Geometric Background Elements ── */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden transition-opacity duration-200">

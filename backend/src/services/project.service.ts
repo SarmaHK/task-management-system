@@ -43,6 +43,21 @@ export class ProjectService {
       type: 'PROJECT_CREATED',
     });
 
+    // Notify all ADMIN users
+    try {
+      const admins = await prisma.user.findMany({ where: { role: Role.ADMIN }, select: { id: true } });
+      for (const admin of admins) {
+        if (admin.id !== data.ownerId) {
+          await SocketService.sendNotification(admin.id, {
+            message: `Project "${project.name}" was created`,
+            type: 'PROJECT_CREATED',
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[Notification Error] Failed to notify admins about project creation:', err);
+    }
+
     return project;
   }
 
@@ -212,6 +227,21 @@ export class ProjectService {
       where: { id: projectId },
       data: { isDeleted: true }
     });
+
+    // Notify all ADMIN users
+    try {
+      const admins = await prisma.user.findMany({ where: { role: Role.ADMIN }, select: { id: true } });
+      for (const admin of admins) {
+        if (admin.id !== userId) {
+          await SocketService.sendNotification(admin.id, {
+            message: `Project "${project.name}" was deleted by ${userRole}`,
+            type: 'PROJECT_DELETED',
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[Notification Error] Failed to notify admins about project deletion:', err);
+    }
   }
 
   // ─── ADD PROJECT MEMBER ──────────────────────────────
