@@ -60,7 +60,7 @@ export function ToastProvider({ children }) {
     success: 'bg-emerald-600 text-white',
     error: 'bg-red-600 text-white',
     warning: 'bg-amber-500 text-white',
-    info: 'bg-indigo-600 text-white',
+    info: 'bg-[#118B95] text-white',
   };
 
   return (
@@ -68,7 +68,7 @@ export function ToastProvider({ children }) {
       {children}
 
       {/* Toast Container */}
-      <div className="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 items-end pointer-events-none">
+      <div className="fixed bottom-6 right-6 z-[99999] flex flex-col-reverse justify-end gap-3 items-end pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}

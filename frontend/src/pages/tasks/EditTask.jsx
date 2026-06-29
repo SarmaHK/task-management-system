@@ -123,7 +123,7 @@ export default function EditTask() {
             <h2 className="text-[18px] font-bold text-gray-800 mb-2">{fetchError}</h2>
             <button
               onClick={() => navigate('/tasks')}
-              className="px-5 py-2.5 bg-indigo-600 text-white font-bold text-[13.5px] rounded-xl hover:bg-indigo-500 transition-colors cursor-pointer"
+              className="px-5 py-2.5 bg-[#118B95] text-white font-bold text-[13.5px] rounded-xl hover:bg-[#E6F5F6]0 transition-colors cursor-pointer"
             >
               ← Back to Tasks
             </button>
@@ -143,7 +143,7 @@ export default function EditTask() {
         <nav className="flex items-center gap-2 text-[13px] text-gray-400 font-medium mb-6">
           <button
             onClick={() => navigate('/tasks')}
-            className="hover:text-indigo-600 transition-colors cursor-pointer"
+            className="hover:text-[#118B95] transition-colors cursor-pointer"
           >
             Tasks
           </button>
@@ -156,7 +156,7 @@ export default function EditTask() {
         {/* Card */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible">
           {/* Gradient header */}
-          <div className="bg-gradient-to-r from-violet-600 to-indigo-600 px-6 sm:px-8 py-6 text-white rounded-t-2xl">
+          <div className="bg-gradient-to-r from-[#118B95] to-[#0D5A60] px-6 sm:px-8 py-6 text-white rounded-t-2xl">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -166,7 +166,7 @@ export default function EditTask() {
                 </div>
                 <div>
                   <h1 className="text-[20px] font-extrabold tracking-tight">Edit Task</h1>
-                  <p className="text-violet-200 text-[13px] font-medium mt-0.5">
+                  <p className="text-[#93CFD4] text-[13px] font-medium mt-0.5">
                     Update the details below and save your changes.
                   </p>
                 </div>
@@ -184,7 +184,7 @@ export default function EditTask() {
             </div>
 
             {/* Meta row */}
-            <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-white/20 text-[12px] text-violet-200 font-medium">
+            <div className="flex flex-wrap gap-3 mt-4 pt-4 border-t border-white/20 text-[12px] text-[#93CFD4] font-medium">
               <span>ID: #{task?.id}</span>
               {task?.createdAt && <span>Created: {formatDate(task.createdAt)}</span>}
               {task?.updatedAt && <span>Updated: {formatDate(task.updatedAt)}</span>}

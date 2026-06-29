@@ -22,8 +22,8 @@ router.get('/:id', checkRole([Role.ADMIN, Role.PROJECT_MANAGER, Role.COLLABORATO
 // PATCH /projects/:id -> PROJECT_MANAGER only
 router.patch('/:id', checkRole([Role.PROJECT_MANAGER]) as any, ProjectController.updateProject);
 
-// DELETE /projects/:id -> ADMIN only (blocked in service anyway)
-router.delete('/:id', checkRole([Role.ADMIN]) as any, ProjectController.deleteProject);
+// DELETE /projects/:id -> PROJECT_MANAGER only
+router.delete('/:id', checkRole([Role.PROJECT_MANAGER]) as any, ProjectController.deleteProject);
 
 // Project Member management endpoints -> PROJECT_MANAGER only
 router.post('/:id/members', checkRole([Role.PROJECT_MANAGER]) as any, ProjectController.addProjectMember);

@@ -1,14 +1,84 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import adminService from '../services/adminService';
+import { useToast } from '../utils/ToastContext';
+import ConfirmModal from '../components/ConfirmModal';
+
+const CustomRoleSelect = ({ value, onChange, disabled, variant = 'form' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (selectRef.current && !selectRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
+
+  const options = [
+    { value: '3', label: 'Collaborator' },
+    { value: '2', label: 'Project Manager' },
+    { value: '1', label: 'Administrator' }
+  ];
+
+  const selectedOption = options.find(o => o.value === String(value));
+
+  const formClass = `px-4 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl text-[14px] text-gray-900 dark:text-white focus:outline-none flex items-center justify-between transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[#118B95]'} ${isOpen ? 'ring-2 ring-[#118B95] border-transparent' : ''}`;
+  const tableClass = `text-[13px] font-semibold text-[#0D5A60] dark:text-[#2AA7B3] bg-[#E6F5F6] dark:bg-[#118B95]/10 px-2 py-1 rounded-lg border border-[#BEE3E6] dark:border-[#118B95]/30 flex items-center justify-between gap-2 transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[#118B95]'} ${isOpen ? 'ring-2 ring-[#118B95]/50' : ''}`;
+
+  return (
+    <div className="relative" ref={selectRef}>
+      <div 
+        className={variant === 'form' ? formClass : tableClass}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+      >
+        <span>{selectedOption?.label}</span>
+        <svg className={`w-3 h-3 text-current transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+      
+      {isOpen && (
+        <div className={`absolute z-50 mt-1 bg-white border border-gray-150 rounded-xl shadow-xl overflow-hidden ${variant === 'table' ? 'w-44 left-0' : 'w-full'}`}>
+          {options.map((opt) => (
+            <div
+              key={opt.value}
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+              className={`px-4 py-2.5 hover:bg-[#E6F5F6]/50 cursor-pointer transition-colors text-[13px] font-medium text-[#052D30] ${String(value) === opt.value ? 'bg-[#E6F5F6]/20' : ''}`}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function AdminUsers() {
   const location = useLocation();
+  const toast = useToast();
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'deactivated'
   const [isLoading, setIsLoading] = useState(true);
+
+  // Generic Confirm Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    isDestructive: false,
+    onConfirm: () => {}
+  });
 
   // Access Requests and Logging States
   const [activeTab, setActiveTab] = useState(() => {
@@ -111,50 +181,77 @@ export default function AdminUsers() {
       }
     } catch (error) {
       console.error('Error updating role:', error);
-      alert(error.response?.data?.message || 'Failed to update role.');
+      toast.error(error.response?.data?.message || 'Failed to update role.');
     }
   };
 
-  const handleDeactivate = async (userId) => {
-    if (!window.confirm('Are you sure you want to deactivate this user?')) return;
-
-    try {
-      const response = await adminService.deactivateUser(userId);
-      if (response.success) {
-        setUsers(users.map(u => u.id === userId ? { ...u, isActive: false } : u));
+  const handleDeactivate = (userId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Deactivate User',
+      message: 'Are you sure you want to deactivate this user?',
+      confirmText: 'Deactivate',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const response = await adminService.deactivateUser(userId);
+          if (response.success) {
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, isActive: false } : u));
+          }
+        } catch (error) {
+          console.error('Error deactivating user:', error);
+          toast.error(error.response?.data?.message || 'Failed to deactivate user.');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
       }
-    } catch (error) {
-      console.error('Error deactivating user:', error);
-      alert(error.response?.data?.message || 'Failed to deactivate user.');
-    }
+    });
   };
 
-  const handleActivate = async (userId) => {
-    if (!window.confirm('Are you sure you want to activate this user?')) return;
-
-    try {
-      const response = await adminService.activateUser(userId);
-      if (response.success) {
-        setUsers(users.map(u => u.id === userId ? { ...u, isActive: true } : u));
+  const handleActivate = (userId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Activate User',
+      message: 'Are you sure you want to activate this user?',
+      confirmText: 'Activate',
+      isDestructive: false,
+      onConfirm: async () => {
+        try {
+          const response = await adminService.activateUser(userId);
+          if (response.success) {
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, isActive: true } : u));
+          }
+        } catch (error) {
+          console.error('Error activating user:', error);
+          toast.error(error.response?.data?.message || 'Failed to activate user.');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
       }
-    } catch (error) {
-      console.error('Error activating user:', error);
-      alert(error.response?.data?.message || 'Failed to activate user.');
-    }
+    });
   };
 
-  const handleDelete = async (userId) => {
-    if (!window.confirm('Are you sure you want to permanently delete this user? This action cannot be undone.')) return;
-
-    try {
-      const response = await adminService.deleteUser(userId);
-      if (response.success) {
-        setUsers(users.filter(u => u.id !== userId));
+  const handleDelete = (userId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete User',
+      message: 'Are you sure you want to permanently delete this user? This action cannot be undone.',
+      confirmText: 'Delete',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const response = await adminService.deleteUser(userId);
+          if (response.success) {
+            setUsers(prev => prev.filter(u => u.id !== userId));
+          }
+        } catch (error) {
+          console.error('Error deleting user:', error);
+          toast.error(error.response?.data?.message || 'Failed to delete user.');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
       }
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      alert(error.response?.data?.message || 'Failed to delete user.');
-    }
+    });
   };
 
   const handleCreateUser = async (e) => {
@@ -196,18 +293,28 @@ export default function AdminUsers() {
     }
   };
 
-  const handleRejectRequest = async (requestId) => {
-    if (!window.confirm('Are you sure you want to reject this access request?')) return;
-    try {
-      const response = await adminService.rejectRegistrationRequest(requestId);
-      if (response.success) {
-        setRequests(requests.filter(r => r.id !== requestId));
-        alert('Access request rejected successfully.');
+  const handleRejectRequest = (requestId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Reject Request',
+      message: 'Are you sure you want to reject this access request?',
+      confirmText: 'Reject',
+      isDestructive: true,
+      onConfirm: async () => {
+        try {
+          const response = await adminService.rejectRegistrationRequest(requestId);
+          if (response.success) {
+            setRequests(prev => prev.filter(r => r.id !== requestId));
+            toast.success('Access request rejected successfully.');
+          }
+        } catch (error) {
+          console.error('Error rejecting request:', error);
+          toast.error(error.response?.data?.message || 'Failed to reject access request.');
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
       }
-    } catch (error) {
-      console.error('Error rejecting request:', error);
-      alert(error.response?.data?.message || 'Failed to reject access request.');
-    }
+    });
   };
 
   const openApproveModal = (req) => {
@@ -234,7 +341,7 @@ export default function AdminUsers() {
       }
     } catch (error) {
       console.error('Error approving request:', error);
-      alert(error.response?.data?.message || 'Failed to approve access request.');
+      toast.error(error.response?.data?.message || 'Failed to approve access request.');
     } finally {
       setIsSubmitting(false);
       setRequestToApprove(null);
@@ -254,8 +361,8 @@ export default function AdminUsers() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-[24px] font-bold text-indigo-950 tracking-tight">User Management</h1>
-            <p className="text-[14px] text-gray-500 font-medium">View, search, and register system access roles.</p>
+            <h1 className="text-[24px] font-bold text-indigo-950 dark:text-white tracking-tight">User Management</h1>
+            <p className="text-[14px] text-gray-500 dark:text-slate-400 font-medium">View, search, and register system access roles.</p>
           </div>
           
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
@@ -269,7 +376,7 @@ export default function AdminUsers() {
                 placeholder="Search name/email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-[14px] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#118B95] focus:border-transparent transition-colors"
               />
             </form>
 
@@ -277,7 +384,7 @@ export default function AdminUsers() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 bg-white border border-gray-200 rounded-xl text-[14px] font-medium text-gray-600 focus:outline-none"
+              className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-[14px] font-medium text-gray-600 dark:text-slate-300 focus:outline-none transition-colors"
             >
               <option value="all">All Users</option>
               <option value="active">Active Only</option>
@@ -287,7 +394,7 @@ export default function AdminUsers() {
             {/* Add User Button */}
             <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-[14px] font-bold px-4 py-2 rounded-xl shadow-md shadow-indigo-200 transition-all cursor-pointer"
+              className="bg-[#118B95] hover:bg-[#0D5A60] text-white text-[14px] font-bold px-4 py-2 rounded-xl shadow-md shadow-indigo-200 transition-all cursor-pointer"
             >
               + Register User
             </button>
@@ -295,47 +402,43 @@ export default function AdminUsers() {
         </div>
 
         {/* Users Table Card */}
-        <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden mt-1">
+        <div className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden mt-1 transition-colors">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-100 text-[11px] uppercase tracking-wider text-gray-400 font-bold">
+                <tr className="bg-gray-50/50 dark:bg-slate-900/50 border-b border-gray-100 dark:border-slate-700 text-[11px] uppercase tracking-wider text-gray-400 dark:text-slate-500 font-bold">
                   <th className="px-6 py-4">User Details</th>
                   <th className="px-6 py-4">Role</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-gray-50 dark:divide-slate-700/50">
                 {isLoading ? (
                   <tr>
                     <td colSpan="4" className="px-6 py-12 text-center text-gray-400 text-[14px] font-medium">Loading users...</td>
                   </tr>
                 ) : users.length === 0 ? (
                   <tr>
-                    <td colSpan="4" className="px-6 py-12 text-center text-gray-400 text-[14px] font-medium">No users found.</td>
+                    <td colSpan="4" className="px-6 py-12 text-center text-gray-400 dark:text-slate-500 text-[14px] font-medium">No users found.</td>
                   </tr>
                 ) : (
                   users.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-50/30 transition-colors">
+                    <tr key={u.id} className="hover:bg-gray-50/30 dark:hover:bg-slate-700/30 transition-colors">
                       <td className="px-6 py-4">
-                        <div className="font-bold text-indigo-950 text-[14px]">{u.name}</div>
-                        <div className="text-gray-500 text-[13px]">{u.email}</div>
+                        <div className="font-bold text-indigo-950 dark:text-white text-[14px]">{u.name}</div>
+                        <div className="text-gray-500 dark:text-slate-400 text-[13px]">{u.email}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <select
+                        <CustomRoleSelect
                           value={u.role.id}
-                          onChange={(e) => handleRoleChange(u.id, parseInt(e.target.value))}
+                          onChange={(val) => handleRoleChange(u.id, parseInt(val))}
                           disabled={!u.isActive} 
-                          className="text-[13px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100 cursor-pointer focus:outline-none disabled:opacity-50"
-                        >
-                          <option value={1}>Administrator</option>
-                          <option value={2}>Project Manager</option>
-                          <option value={3}>Collaborator</option>
-                        </select>
+                          variant="table"
+                        />
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`text-[12px] font-bold px-2.5 py-1 rounded-full border ${u.isActive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                        <span className={`text-[12px] font-bold px-2.5 py-1 rounded-full border ${u.isActive ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800'}`}>
                           {u.isActive ? 'Active' : 'Deactivated'}
                         </span>
                       </td>
@@ -368,11 +471,11 @@ export default function AdminUsers() {
 
         {/* Create User Modal */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all p-6 flex flex-col gap-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all p-6 flex flex-col gap-4">
               
-              <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                <h3 className="text-[18px] font-bold text-indigo-950">Register New User</h3>
+              <div className="flex justify-between items-center border-b border-gray-100 dark:border-slate-700 pb-3">
+                <h3 className="text-[18px] font-bold text-indigo-950 dark:text-white">Register New User</h3>
                 <button onClick={closeCreationModal} className="text-gray-400 hover:text-gray-600 text-lg cursor-pointer">✕</button>
               </div>
 
@@ -386,44 +489,40 @@ export default function AdminUsers() {
                   )}
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] font-bold text-indigo-950">Full Name</label>
+                    <label className="text-[13px] font-bold text-indigo-950 dark:text-slate-300">Full Name</label>
                     <input
                       type="text"
                       placeholder="e.g. John Doe"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="px-4 py-2 border border-gray-200 rounded-xl text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="px-4 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl text-[14px] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#118B95]"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] font-bold text-indigo-950">Email Address</label>
+                    <label className="text-[13px] font-bold text-indigo-950 dark:text-slate-300">Email Address</label>
                     <input
                       type="email"
                       placeholder="e.g. john@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="px-4 py-2 border border-gray-200 rounded-xl text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="px-4 py-2 bg-white dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl text-[14px] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#118B95]"
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] font-bold text-indigo-950">System Role</label>
-                    <select
+                    <label className="text-[13px] font-bold text-indigo-950 dark:text-slate-300">System Role</label>
+                    <CustomRoleSelect
                       value={roleId}
-                      onChange={(e) => setRoleId(e.target.value)}
-                      className="px-4 py-2 border border-gray-200 rounded-xl text-[14px] bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="3">Collaborator</option>
-                      <option value="2">Project Manager</option>
-                      <option value="1">Administrator</option>
-                    </select>
+                      onChange={(val) => setRoleId(val)}
+                      variant="form"
+                    />
                   </div>
 
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold py-2.5 rounded-xl shadow-md cursor-pointer transition-all"
+                    className="w-full mt-2 bg-[#118B95] hover:bg-[#0D5A60] disabled:bg-[#93CFD4] text-white font-bold py-2.5 rounded-xl shadow-md cursor-pointer transition-all"
                   >
                     {isSubmitting ? 'Registering...' : 'Register Account'}
                   </button>
@@ -435,15 +534,15 @@ export default function AdminUsers() {
                     🎉 Account successfully registered! The user has been added to the system database.
                   </div>
 
-                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex flex-col gap-2">
-                    <div className="text-[12px] text-gray-400 font-bold uppercase">Account Details</div>
+                  <div className="bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-700 rounded-xl p-4 flex flex-col gap-2">
+                    <div className="text-[12px] text-gray-400 dark:text-slate-500 font-bold uppercase">Account Details</div>
                     <div className="text-[13.5px]">
-                      <span className="text-gray-500 font-medium">Name: </span>
-                      <strong className="text-indigo-950">{createdCredentials.name}</strong>
+                      <span className="text-gray-500 dark:text-slate-400 font-medium">Name: </span>
+                      <strong className="text-indigo-950 dark:text-white">{createdCredentials.name}</strong>
                     </div>
                     <div className="text-[13.5px]">
-                      <span className="text-gray-500 font-medium">Email: </span>
-                      <strong className="text-indigo-950">{createdCredentials.email}</strong>
+                      <span className="text-gray-500 dark:text-slate-400 font-medium">Email: </span>
+                      <strong className="text-indigo-950 dark:text-white">{createdCredentials.email}</strong>
                     </div>
                   </div>
 
@@ -453,7 +552,7 @@ export default function AdminUsers() {
 
                   <button
                     onClick={closeCreationModal}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl cursor-pointer"
+                    className="w-full bg-[#118B95] hover:bg-[#0D5A60] text-white font-bold py-2.5 rounded-xl cursor-pointer"
                   >
                     Done
                   </button>
@@ -466,32 +565,28 @@ export default function AdminUsers() {
 
         {/* Approve Access Request Modal */}
         {approveModalOpen && requestToApprove && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all p-6 flex flex-col gap-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden transform transition-all p-6 flex flex-col gap-4">
               
-              <div className="flex justify-between items-center border-b border-gray-100 pb-3">
-                <h3 className="text-[18px] font-bold text-indigo-950">Approve Access Request</h3>
-                <button onClick={() => setApproveModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg cursor-pointer">✕</button>
+              <div className="flex justify-between items-center border-b border-gray-100 dark:border-slate-700 pb-3">
+                <h3 className="text-[18px] font-bold text-indigo-950 dark:text-white">Approve Access Request</h3>
+                <button onClick={() => setApproveModalOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg cursor-pointer">✕</button>
               </div>
 
-              <div className="bg-indigo-50/50 border border-indigo-100 p-4 rounded-xl flex flex-col gap-1.5">
-                <div className="text-[12.5px] text-gray-400 font-bold uppercase">Requester Info</div>
-                <div className="text-[14px] text-indigo-950 font-bold">{requestToApprove.name}</div>
-                <div className="text-[13px] text-gray-500">{requestToApprove.email}</div>
+              <div className="bg-[#E6F5F6]/50 dark:bg-slate-900/50 border border-indigo-100 dark:border-slate-700 p-4 rounded-xl flex flex-col gap-1.5">
+                <div className="text-[12.5px] text-gray-400 dark:text-slate-500 font-bold uppercase">Requester Info</div>
+                <div className="text-[14px] text-indigo-950 dark:text-white font-bold">{requestToApprove.name}</div>
+                <div className="text-[13px] text-gray-500 dark:text-slate-400">{requestToApprove.email}</div>
               </div>
 
               <form onSubmit={handleApproveConfirm} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[13px] font-bold text-indigo-950">Assign System Role</label>
-                  <select
+                  <label className="text-[13px] font-bold text-indigo-950 dark:text-slate-300">Assign System Role</label>
+                  <CustomRoleSelect
                     value={approveRoleId}
-                    onChange={(e) => setApproveRoleId(e.target.value)}
-                    className="px-4 py-2 border border-gray-200 rounded-xl text-[14px] bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="3">Collaborator</option>
-                    <option value="2">Project Manager</option>
-                    <option value="1">Administrator</option>
-                  </select>
+                    onChange={(val) => setApproveRoleId(val)}
+                    variant="form"
+                  />
                 </div>
 
                 <div className="flex gap-3 mt-2">
@@ -505,7 +600,7 @@ export default function AdminUsers() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold py-2.5 rounded-xl shadow-md transition-all cursor-pointer"
+                    className="flex-1 bg-[#118B95] hover:bg-[#0D5A60] disabled:bg-[#93CFD4] text-white font-bold py-2.5 rounded-xl shadow-md transition-all cursor-pointer"
                   >
                     {isSubmitting ? 'Approving...' : 'Confirm Approval'}
                   </button>
@@ -517,6 +612,16 @@ export default function AdminUsers() {
         )}
 
       </div>
+      
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        isDestructive={confirmModal.isDestructive}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </DashboardLayout>
   );
 }

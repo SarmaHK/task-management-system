@@ -37,11 +37,22 @@ export class ProjectService {
       },
     });
 
-    // Send socket notification
-    await SocketService.sendNotification(data.ownerId, {
-      message: `Project "${project.name}" was created successfully`,
-      type: 'PROJECT_CREATED',
-    });
+
+
+    // Notify all ADMIN users
+    try {
+      const admins = await prisma.user.findMany({ where: { role: Role.ADMIN }, select: { id: true } });
+      for (const admin of admins) {
+        if (admin.id !== data.ownerId) {
+          await SocketService.sendNotification(admin.id, {
+            message: `Project "${project.name}" was created`,
+            type: 'PROJECT_CREATED',
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[Notification Error] Failed to notify admins about project creation:', err);
+    }
 
     return project;
   }
@@ -183,22 +194,52 @@ export class ProjectService {
     });
 
     for (const member of members) {
-      await SocketService.sendNotification(member.userId, {
-        message: data.status === 'ARCHIVED' 
-          ? `Project "${updatedProject.name}" was archived`
-          : data.status === 'COMPLETED'
-          ? `Project "${updatedProject.name}" was marked as completed`
-          : `Project "${updatedProject.name}" was updated`,
-        type: 'PROJECT_UPDATED',
-      });
+      if (member.userId !== userId) {
+        await SocketService.sendNotification(member.userId, {
+          message: data.status === 'ARCHIVED' 
+            ? `Project "${updatedProject.name}" was archived`
+            : data.status === 'COMPLETED'
+            ? `Project "${updatedProject.name}" was marked as completed`
+            : `Project "${updatedProject.name}" was updated`,
+          type: 'PROJECT_UPDATED',
+        });
+      }
     }
 
     return updatedProject;
   }
 
-  // ─── DELETE PROJECT (BLOCKED) ────────────────────────
+  // ─── DELETE PROJECT ────────────────────────
   public static async deleteProject(projectId: number, userId: number, userRole: Role) {
-    throw new AppError('Direct project deletion is disabled. Projects can be archived by changing their status.', 403);
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project || project.isDeleted) {
+      throw new AppError('Project not found', 404);
+    }
+
+    if (project.ownerId !== userId || userRole !== Role.PROJECT_MANAGER) {
+      throw new AppError('Only the project creator can delete this project', 403);
+    }
+
+    // Soft delete the project to preserve audit trail and avoid FK constraint errors
+    await prisma.project.update({ 
+      where: { id: projectId },
+      data: { isDeleted: true }
+    });
+
+    // Notify all ADMIN users
+    try {
+      const admins = await prisma.user.findMany({ where: { role: Role.ADMIN }, select: { id: true } });
+      for (const admin of admins) {
+        if (admin.id !== userId) {
+          await SocketService.sendNotification(admin.id, {
+            message: `Project "${project.name}" was deleted by ${userRole}`,
+            type: 'PROJECT_DELETED',
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[Notification Error] Failed to notify admins about project deletion:', err);
+    }
   }
 
   // ─── ADD PROJECT MEMBER ──────────────────────────────

@@ -58,6 +58,7 @@ export function AuthProvider({ children }) {
     try {
       const response = await fetch('/api/auth/refresh-token', {
         method: 'POST',
+        credentials: 'include',
       });
       const data = await response.json();
       if (data.success && data.data?.token) {
@@ -77,7 +78,43 @@ export function AuthProvider({ children }) {
 
   // Initial session check on mount
   useEffect(() => {
-    refreshSession();
+    const initAuth = async () => {
+      const currentToken = sessionStorage.getItem('accessToken');
+      let isTokenValid = false;
+
+      if (currentToken) {
+        try {
+          const response = await fetch('/api/auth/me', {
+            headers: { 'Authorization': `Bearer ${currentToken}` },
+          });
+          const data = await response.json();
+          if (response.ok && data.success && data.data?.user) {
+            const u = data.data.user;
+            setUser({
+              id: u.id,
+              name: u.name,
+              email: u.email,
+              mustChangePassword: u.mustChangePassword,
+              role: typeof u.role === 'object' ? u.role.name : u.role,
+            });
+            isTokenValid = true;
+          }
+        } catch (error) {
+          console.error('Error verifying token on mount:', error);
+        }
+      }
+
+      if (isTokenValid) {
+        setLoading(false);
+        // Refresh token in background
+        refreshSession();
+      } else {
+        // Fallback to refresh session
+        await refreshSession();
+      }
+    };
+
+    initAuth();
   }, [refreshSession]);
 
   // Background token refresh interval (every 14 minutes)
@@ -104,7 +141,6 @@ export function AuthProvider({ children }) {
 
   // Login action
   const login = async (email, password) => {
-    setLoading(true);
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -121,17 +157,14 @@ export function AuthProvider({ children }) {
       setAccessToken(token);
       persistToken(token);
       setUser(loggedUser);
-      setLoading(false);
       return resData.data;
     } catch (error) {
-      setLoading(false);
       throw error;
     }
   };
 
   // Register action
   const register = async (name, email, password) => {
-    setLoading(true);
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
@@ -144,10 +177,8 @@ export function AuthProvider({ children }) {
         throw new Error(resData.message || 'Registration failed');
       }
 
-      setLoading(false);
       return resData;
     } catch (error) {
-      setLoading(false);
       throw error;
     }
   };
@@ -155,7 +186,7 @@ export function AuthProvider({ children }) {
   // Logout action
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch (error) {
       console.error('Logout error on server:', error);
     } finally {

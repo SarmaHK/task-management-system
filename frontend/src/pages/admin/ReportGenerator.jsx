@@ -172,7 +172,7 @@ export default function ReportGenerator() {
               <select 
                 value={entity}
                 onChange={(e) => setEntity(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-3 outline-none"
+                className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-[#118B95] focus:border-[#118B95] block p-3 outline-none"
               >
                 {Object.entries(ENTITIES).map(([k, v]) => (
                   <option key={k} value={k}>{v.label}</option>
@@ -191,7 +191,7 @@ export default function ReportGenerator() {
                       <select
                         value={filters[filter.key] || 'ALL'}
                         onChange={(e) => handleFilterChange(filter.key, e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block p-2 outline-none"
+                        className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-xl focus:ring-[#118B95] focus:border-[#118B95] block p-2 outline-none"
                       >
                         <option value="ALL">All {filter.label}s</option>
                         {filter.options.map(opt => (
@@ -217,13 +217,13 @@ export default function ReportGenerator() {
                         onChange={() => handleColumnToggle(col.key)}
                         className="peer sr-only"
                       />
-                      <div className="w-5 h-5 border-2 border-gray-300 rounded-md peer-checked:bg-blue-600 peer-checked:border-blue-600 transition-all flex items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-gray-300 rounded-md peer-checked:bg-[#118B95] peer-checked:border-blue-600 transition-all flex items-center justify-center">
                         <svg className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
                     </div>
-                    <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
+                    <span className="text-sm font-medium text-gray-700 group-hover:text-[#118B95] transition-colors">
                       {col.label}
                     </span>
                   </label>
@@ -236,7 +236,7 @@ export default function ReportGenerator() {
             <button
               onClick={handleGeneratePreview}
               disabled={isLoading || selectedColumns.length === 0}
-              className="w-full py-3 bg-[#2563EB] text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2"
+              className="w-full py-3 bg-[#118B95] text-white font-semibold rounded-xl hover:bg-[#0D5A60] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#118B95]/30 flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <span>Generating...</span>
@@ -306,7 +306,7 @@ export default function ReportGenerator() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {data.map((row, i) => (
-                      <tr key={i} className="hover:bg-blue-50/30 transition-colors">
+                      <tr key={i} className="hover:bg-[#E6F5F6]/30 transition-colors">
                         {ENTITIES[entity].columns
                           .filter(c => selectedColumns.includes(c.key))
                           .map(col => {

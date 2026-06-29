@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import projectService from '../../services/projectService';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../utils/ToastContext';
+import ConfirmModal from '../../components/ConfirmModal';
 
 export default function Projects() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -19,6 +22,10 @@ export default function Projects() {
   const [endDate, setEndDate] = useState('');
   const [selectedProject, setSelectedProject] = useState(null);
   const [editStatus, setEditStatus] = useState('ACTIVE');
+  
+  // Confirm Modal states
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
 
   const fetchProjects = async () => {
     try {
@@ -59,7 +66,7 @@ export default function Projects() {
         fetchProjects();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create project');
+      toast.error(err.response?.data?.message || 'Failed to create project');
     }
   };
 
@@ -86,20 +93,27 @@ export default function Projects() {
         fetchProjects();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update project');
+      toast.error(err.response?.data?.message || 'Failed to update project');
     }
   };
 
-  const handleDeleteProject = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this project? This will soft delete the project.')) return;
+  const handleDeleteConfirm = async () => {
+    if (!projectToDelete) return;
     try {
-      const res = await projectService.deleteProject(id);
+      const res = await projectService.deleteProject(projectToDelete);
       if (res.success) {
+        setConfirmModalOpen(false);
+        setProjectToDelete(null);
         fetchProjects();
       }
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to delete project');
+      toast.error(err.response?.data?.message || 'Failed to delete project');
     }
+  };
+
+  const openDeleteConfirm = (id) => {
+    setProjectToDelete(id);
+    setConfirmModalOpen(true);
   };
 
   const openEditModal = (proj) => {
@@ -122,15 +136,18 @@ export default function Projects() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-[24px] font-bold text-indigo-950 tracking-tight">Project Workspaces</h1>
+            <h1 className="text-[24px] font-bold text-[#0D5A60] tracking-tight">Project Workspaces</h1>
             <p className="text-[14px] text-gray-500 font-medium">Manage and collaborate across multiple projects.</p>
           </div>
           {user?.role === 'PROJECT_MANAGER' && (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-all"
+              className="px-4.5 py-2.5 bg-[#118B95] hover:bg-[#0D5A60] text-white font-bold text-[13.5px] rounded-xl cursor-pointer shadow-sm transition-all flex items-center gap-2"
             >
-              🆕 Create Project
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              </svg>
+              Create Project
             </button>
           )}
         </div>
@@ -147,27 +164,27 @@ export default function Projects() {
             {projects.map((proj) => (
               <div
                 key={proj.id}
-                className="bg-white border border-indigo-50/80 hover:border-indigo-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all duration-200"
+                className="bg-white border-2 border-[#E6F5F6] hover:border-[#118B95] rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-xl hover:shadow-[#118B95]/10 transition-all duration-300 transform hover:-translate-y-1"
               >
                 <div>
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <span
-                      className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${
+                      className={`text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider ${
                         proj.status === 'ACTIVE'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : proj.status === 'COMPLETED'
-                          ? 'bg-blue-50 text-blue-700 border-blue-100'
-                          : 'bg-amber-50 text-amber-700 border-amber-100'
+                          ? 'bg-[#E6F5F6] text-[#0D5A60] border border-[#BEE3E6]'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}
                     >
                       {proj.status}
                     </span>
-                    <span className="text-[11px] text-gray-400 font-semibold">
+                    <span className="text-[11px] text-gray-400 font-semibold bg-gray-50 px-2 py-1 rounded-md">
                       Created by {proj.owner?.name || 'User'}
                     </span>
                   </div>
-                  <h3 className="text-[17px] font-extrabold text-indigo-950 truncate mb-1.5">{proj.name}</h3>
-                  <p className="text-[13px] text-gray-500 line-clamp-3 leading-relaxed mb-4">
+                  <h3 className="text-[18px] font-extrabold text-[#0D5A60] truncate mb-2">{proj.name}</h3>
+                  <p className="text-[13.5px] text-gray-500 line-clamp-3 leading-relaxed mb-4">
                     {proj.description || 'No description provided.'}
                   </p>
                 </div>
@@ -175,9 +192,12 @@ export default function Projects() {
                 <div className="pt-4 border-t border-gray-50 flex items-center justify-between">
                   <button
                     onClick={() => navigate(`/projects/${proj.id}`)}
-                    className="text-[13px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                    className="text-[13px] font-bold text-[#118B95] hover:text-[#0D5A60] transition-colors flex items-center gap-1"
                   >
-                    View Details ➜
+                    View Details
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </button>
 
                   {isAllowedToManage(proj) && (
@@ -189,7 +209,7 @@ export default function Projects() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteProject(proj.id)}
+                        onClick={() => openDeleteConfirm(proj.id)}
                         className="text-[12px] font-bold text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded"
                       >
                         Delete
@@ -204,54 +224,54 @@ export default function Projects() {
 
         {/* Create Project Modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300">
             <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl p-6 flex flex-col gap-5 animate-fadeUp">
-              <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                <h3 className="text-[18px] font-bold text-indigo-950">Create New Project</h3>
-                <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                <h3 className="text-[20px] font-extrabold text-[#0D5A60]">Create New Project</h3>
+                <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-[#118B95] transition-colors p-1 bg-gray-50 hover:bg-[#E6F5F6] rounded-lg">✕</button>
               </div>
 
-              <form onSubmit={handleCreateProject} className="flex flex-col gap-4">
+              <form onSubmit={handleCreateProject} className="flex flex-col gap-5">
                 <div>
-                  <label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Project Name *</label>
+                  <label className="text-[12px] font-bold text-[#118B95] uppercase tracking-wider block mb-1.5 ml-1">Project Name *</label>
                   <input
                     type="text"
                     required
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
                     placeholder="Enter project name..."
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-800 font-medium placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#118B95] focus:ring-4 focus:ring-[#118B95]/10 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Description</label>
+                  <label className="text-[12px] font-bold text-[#118B95] uppercase tracking-wider block mb-1.5 ml-1">Description</label>
                   <textarea
                     rows={3}
                     value={projectDesc}
                     onChange={(e) => setProjectDesc(e.target.value)}
                     placeholder="Enter project description..."
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-800 font-medium placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-[#118B95] focus:ring-4 focus:ring-[#118B95]/10 transition-all resize-none"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-5">
                   <div>
-                    <label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Start Date</label>
+                    <label className="text-[12px] font-bold text-[#118B95] uppercase tracking-wider block mb-1.5 ml-1">Start Date</label>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-800 font-medium focus:outline-none focus:bg-white focus:border-[#118B95] focus:ring-4 focus:ring-[#118B95]/10 transition-all"
                     />
                   </div>
                   <div>
-                    <label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider block mb-1">End Date</label>
+                    <label className="text-[12px] font-bold text-[#118B95] uppercase tracking-wider block mb-1.5 ml-1">End Date</label>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-800 font-medium focus:outline-none focus:bg-white focus:border-[#118B95] focus:ring-4 focus:ring-[#118B95]/10 transition-all"
                     />
                   </div>
                 </div>
@@ -266,7 +286,7 @@ export default function Projects() {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[13px] font-bold"
+                    className="px-5 py-2.5 bg-[#118B95] hover:bg-[#0D5A60] shadow-md shadow-[#118B95]/20 text-white rounded-lg text-[13px] font-bold transition-all"
                   >
                     Create Workspace
                   </button>
@@ -278,42 +298,42 @@ export default function Projects() {
 
         {/* Edit Project Modal */}
         {showEditModal && (
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300">
             <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl p-6 flex flex-col gap-5 animate-fadeUp">
-              <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                <h3 className="text-[18px] font-bold text-indigo-950">Edit Project Settings</h3>
-                <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                <h3 className="text-[20px] font-extrabold text-[#0D5A60]">Edit Project Settings</h3>
+                <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-[#118B95] transition-colors p-1 bg-gray-50 hover:bg-[#E6F5F6] rounded-lg">✕</button>
               </div>
 
-              <form onSubmit={handleEditProject} className="flex flex-col gap-4">
+              <form onSubmit={handleEditProject} className="flex flex-col gap-5">
                 <div>
-                  <label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Project Name *</label>
+                  <label className="text-[12px] font-bold text-[#118B95] uppercase tracking-wider block mb-1.5 ml-1">Project Name *</label>
                   <input
                     type="text"
                     required
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-800 font-medium focus:outline-none focus:bg-white focus:border-[#118B95] focus:ring-4 focus:ring-[#118B95]/10 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Description</label>
+                  <label className="text-[12px] font-bold text-[#118B95] uppercase tracking-wider block mb-1.5 ml-1">Description</label>
                   <textarea
                     rows={3}
                     value={projectDesc}
                     onChange={(e) => setProjectDesc(e.target.value)}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-800 font-medium focus:outline-none focus:bg-white focus:border-[#118B95] focus:ring-4 focus:ring-[#118B95]/10 transition-all resize-none"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-5">
                   <div className="col-span-1">
-                    <label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Status</label>
+                    <label className="text-[12px] font-bold text-[#118B95] uppercase tracking-wider block mb-1.5 ml-1">Status</label>
                     <select
                       value={editStatus}
                       onChange={(e) => setEditStatus(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-800 font-medium focus:outline-none focus:bg-white focus:border-[#118B95] focus:ring-4 focus:ring-[#118B95]/10 transition-all"
                     >
                       <option value="ACTIVE">ACTIVE</option>
                       <option value="COMPLETED">COMPLETED</option>
@@ -321,21 +341,21 @@ export default function Projects() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Start Date</label>
+                    <label className="text-[12px] font-bold text-[#118B95] uppercase tracking-wider block mb-1.5 ml-1">Start Date</label>
                     <input
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-800 font-medium focus:outline-none focus:bg-white focus:border-[#118B95] focus:ring-4 focus:ring-[#118B95]/10 transition-all"
                     />
                   </div>
                   <div>
-                    <label className="text-[12px] font-bold text-gray-400 uppercase tracking-wider block mb-1">End Date</label>
+                    <label className="text-[12px] font-bold text-[#118B95] uppercase tracking-wider block mb-1.5 ml-1">End Date</label>
                     <input
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-[14px] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[14px] text-gray-800 font-medium focus:outline-none focus:bg-white focus:border-[#118B95] focus:ring-4 focus:ring-[#118B95]/10 transition-all"
                     />
                   </div>
                 </div>
@@ -350,7 +370,7 @@ export default function Projects() {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[13px] font-bold"
+                    className="px-5 py-2.5 bg-[#118B95] hover:bg-[#0D5A60] shadow-md shadow-[#118B95]/20 text-white rounded-lg text-[13px] font-bold transition-all"
                   >
                     Save Changes
                   </button>
@@ -359,6 +379,19 @@ export default function Projects() {
             </div>
           </div>
         )}
+        
+        <ConfirmModal
+          isOpen={confirmModalOpen}
+          title="Delete Project"
+          message="Are you sure you want to delete this project? This will soft delete the project."
+          confirmText="Delete"
+          isDestructive={true}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => {
+            setConfirmModalOpen(false);
+            setProjectToDelete(null);
+          }}
+        />
       </div>
     </DashboardLayout>
   );

@@ -170,7 +170,7 @@ export default function Calendar() {
     if (task.status === 'COMPLETED') badgeColor = 'bg-green-500';
     if (task.status === 'BLOCKED') badgeColor = 'bg-red-500';
     if (task.status === 'REVIEW') badgeColor = 'bg-purple-500';
-    if (task.status === 'IN_PROGRESS') badgeColor = 'bg-indigo-500';
+    if (task.status === 'IN_PROGRESS') badgeColor = 'bg-[#E6F5F6]0';
 
     return (
       <div className="flex items-center gap-1.5 px-1 w-full h-full text-xs font-semibold rounded overflow-hidden">
@@ -209,7 +209,7 @@ export default function Calendar() {
           </div>
           <button
             onClick={() => navigate('/tasks/create')}
-            className="px-4 py-2 bg-[#2563EB] text-white font-semibold text-sm rounded-lg shadow-sm hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-[#118B95] text-white font-semibold text-sm rounded-lg shadow-sm hover:bg-[#0D5A60] transition-colors"
           >
             Add Task
           </button>

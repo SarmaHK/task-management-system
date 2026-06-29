@@ -1,11 +1,13 @@
 /**
  * TaskForm.jsx — Reusable form used by both CreateTask and EditTask pages
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import projectService from '../../services/projectService';
 import taskService from '../../services/taskService';
+import { useAuth } from '../../context/AuthContext';
 
 const STATUSES = [
+  { value: 'BACKLOG', label: '📝 Backlog' },
   { value: 'TODO', label: '⏳ To Do' },
   { value: 'IN_PROGRESS', label: '🔄 In Progress' },
   { value: 'COMPLETED', label: '✅ Completed' },
@@ -34,11 +36,13 @@ export default function TaskForm({
   showStatus = false,
   showProjectId = false,
 }) {
+  const { user } = useAuth();
+  
   const [form, setForm] = useState({
     title: '',
     description: '',
     priority: 'MEDIUM',
-    status: 'TODO',
+    status: 'BACKLOG',
     dueDate: '',
     projectId: '',
     assigneeIds: [],
@@ -47,28 +51,14 @@ export default function TaskForm({
 
   const [projects, setProjects] = useState([]);
   const [projectMembers, setProjectMembers] = useState([]);
-  const [allCollaborators, setAllCollaborators] = useState([]);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const projectDropdownRef = useRef(null);
 
-  // Fetch all active collaborators in the system
-  useEffect(() => {
-    const fetchCollaborators = async () => {
-      try {
-        const res = await taskService.getCollaborators();
-        if (res.success) {
-          setAllCollaborators(res.data || []);
-        }
-      } catch (err) {
-        console.error('Error fetching system collaborators for form:', err);
-      }
-    };
-    fetchCollaborators();
-  }, []);
-
-  // Unified list of assignable users (merging project members and system collaborators)
+  // List of assignable users (only project members)
   const getAssignableUsers = () => {
     const map = new Map();
 
@@ -83,25 +73,17 @@ export default function TaskForm({
       }
     });
 
-    // 2. Add system collaborators
-    allCollaborators.forEach((c) => {
-      if (!map.has(c.id)) {
-        map.set(c.id, {
-          userId: c.id,
-          name: c.name,
-          email: c.email,
-        });
-      }
-    });
-
     return Array.from(map.values());
   };
 
-  // Click-outside listener to auto-close collaborator search dropdown
+  // Click-outside listener to auto-close dropdowns
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (!e.target.closest('.collaborator-search-container')) {
         setDropdownOpen(false);
+      }
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target)) {
+        setProjectDropdownOpen(false);
       }
     };
     document.addEventListener('click', handleOutsideClick);
@@ -220,7 +202,7 @@ export default function TaskForm({
   };
 
   const inputBase =
-    'w-full px-4 py-3 rounded-xl border text-[14px] font-medium text-gray-800 bg-white transition-all duration-150 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400';
+    'w-full px-4 py-3 rounded-xl border text-[14px] font-medium text-gray-800 bg-white transition-all duration-150 outline-none focus:ring-2 focus:ring-[#118B95]/30 focus:border-indigo-400';
   const inputError = 'border-red-300 bg-red-50/30 focus:ring-red-400/30 focus:border-red-400';
   const inputNormal = 'border-gray-200 hover:border-gray-300';
 
@@ -228,29 +210,69 @@ export default function TaskForm({
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
       
       {/* Project Selector — only in create mode */}
-      {showProjectId && (
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[13px] font-bold text-gray-700 flex items-center gap-1">
-            Project Workspace <span className="text-red-500">*</span>
-          </label>
-          <select
-            id="task-project-id"
-            name="projectId"
-            value={form.projectId}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            className={`${inputBase} ${touched.projectId && errors.projectId ? inputError : inputNormal} cursor-pointer`}
-          >
-            <option value="">-- Select Project Workspace --</option>
-            {projects.map((proj) => (
-              <option key={proj.id} value={proj.id}>{proj.name}</option>
-            ))}
-          </select>
-          {touched.projectId && errors.projectId && (
-            <p className="text-[12px] text-red-500 font-medium">{errors.projectId}</p>
-          )}
-        </div>
-      )}
+      {showProjectId && (() => {
+        const filteredProjects = projects.filter((proj) => {
+          if (user?.role === 'ADMIN') return true;
+          return proj.owner?.id === user?.id || proj.members?.some(m => m.userId === user?.id);
+        });
+        
+        return (
+          <div className="flex flex-col gap-1.5" ref={projectDropdownRef}>
+            <label className="text-[13px] font-bold text-gray-700 flex items-center gap-1">
+              Project Workspace <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div 
+                className={`${inputBase} flex items-center justify-between cursor-pointer ${touched.projectId && errors.projectId ? inputError : inputNormal}`}
+                onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
+              >
+                <span className={form.projectId ? 'text-gray-800' : 'text-gray-400'}>
+                  {form.projectId ? filteredProjects.find(p => p.id == form.projectId)?.name || '-- Select Project Workspace --' : '-- Select Project Workspace --'}
+                </span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${projectDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+              
+              {projectDropdownOpen && (
+                <div className="absolute z-50 w-full mt-1.5 bg-white border border-gray-150 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                  <div 
+                    className="px-4 py-3 hover:bg-[#E6F5F6]/50 cursor-pointer transition-colors text-[13px] font-medium text-gray-400 border-b border-gray-100"
+                    onClick={() => {
+                      setForm(prev => ({ ...prev, projectId: '' }));
+                      setTouched(prev => ({ ...prev, projectId: true }));
+                      setProjectDropdownOpen(false);
+                    }}
+                  >
+                    -- Select Project Workspace --
+                  </div>
+                  {filteredProjects.map((proj) => (
+                    <div
+                      key={proj.id}
+                      onClick={() => {
+                        setForm(prev => ({ ...prev, projectId: proj.id }));
+                        setErrors(prev => ({ ...prev, projectId: undefined }));
+                        setProjectDropdownOpen(false);
+                      }}
+                      className={`px-4 py-3 hover:bg-[#E6F5F6]/50 cursor-pointer transition-colors text-[13px] font-medium text-[#052D30] ${form.projectId == proj.id ? 'bg-[#E6F5F6]/20' : ''}`}
+                    >
+                      {proj.name}
+                    </div>
+                  ))}
+                  {filteredProjects.length === 0 && (
+                    <div className="px-4 py-3 text-[13px] font-medium text-gray-400 italic">
+                      No projects available
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {touched.projectId && errors.projectId && (
+              <p className="text-[12px] text-red-500 font-medium">{errors.projectId}</p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Title */}
       <div className="flex flex-col gap-1.5">
@@ -349,7 +371,7 @@ export default function TaskForm({
       {/* Searchable Task Assignees Selector - including all system collaborators */}
       {form.projectId && (
         <div className="flex flex-col gap-1.5 collaborator-search-container relative">
-          <label className="text-[13px] font-bold text-indigo-950 block mb-1">
+          <label className="text-[13px] font-bold text-[#052D30] block mb-1">
             Task Assignees (Collaborators & Members)
           </label>
 
@@ -361,9 +383,9 @@ export default function TaskForm({
                 .map((m) => (
                   <span
                     key={m.userId}
-                    className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-950 px-2.5 py-1 rounded-xl text-[12px] font-bold shadow-sm"
+                    className="inline-flex items-center gap-1.5 bg-[#E6F5F6] border border-[#BEE3E6] text-[#052D30] px-2.5 py-1 rounded-xl text-[12px] font-bold shadow-sm"
                   >
-                    <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[9px] font-extrabold flex items-center justify-center">
+                    <span className="w-4 h-4 rounded-full bg-[#118B95] text-white text-[9px] font-extrabold flex items-center justify-center">
                       {(m.name || 'U').charAt(0).toUpperCase()}
                     </span>
                     {m.name}
@@ -371,7 +393,7 @@ export default function TaskForm({
                     <button
                       type="button"
                       onClick={() => handleAssigneeChange(m.userId, false)}
-                      className="text-indigo-400 hover:text-indigo-600 font-extrabold focus:outline-none ml-1 cursor-pointer"
+                      className="text-gray-400 hover:text-[#118B95] font-extrabold focus:outline-none ml-1 cursor-pointer"
                     >
                       ✕
                     </button>
@@ -387,6 +409,7 @@ export default function TaskForm({
               <div className="relative flex items-center">
                 <input
                   type="text"
+                  autoComplete="off"
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
@@ -437,21 +460,21 @@ export default function TaskForm({
                               setSearchQuery('');
                               setDropdownOpen(false);
                             }}
-                            className={`flex items-center justify-between px-4 py-2.5 hover:bg-indigo-50/50 cursor-pointer transition-colors text-[13px] font-medium ${
-                              isSelected ? 'bg-indigo-50/20' : ''
+                            className={`flex items-center justify-between px-4 py-2.5 hover:bg-[#E6F5F6]/50 cursor-pointer transition-colors text-[13px] font-medium ${
+                              isSelected ? 'bg-[#E6F5F6]/20' : ''
                             }`}
                           >
                             <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-[11px] font-extrabold flex items-center justify-center">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#2AA7B3] to-[#118B95] text-white text-[11px] font-extrabold flex items-center justify-center">
                                 {(m.name || 'U').charAt(0).toUpperCase()}
                               </div>
                               <div className="flex flex-col">
-                                <span className="font-bold text-indigo-950">{m.name}</span>
+                                <span className="font-bold text-[#052D30]">{m.name}</span>
                                 <span className="text-[11px] text-gray-400">{m.email} • ID: {m.userId}</span>
                               </div>
                             </div>
                             {isSelected && (
-                              <span className="text-indigo-600 font-bold text-[12.5px] pr-1">✓ Selected</span>
+                              <span className="text-[#118B95] font-bold text-[12.5px] pr-1">✓ Selected</span>
                             )}
                           </div>
                         );
@@ -470,7 +493,7 @@ export default function TaskForm({
           id="task-form-submit"
           type="submit"
           disabled={isSubmitting}
-          className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold text-[14.5px] rounded-xl shadow-lg hover:shadow-indigo-500/30 hover:from-indigo-500 hover:to-violet-500 active:scale-[0.98] transition-all duration-150 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+          className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-[#118B95] to-[#0D5A60] text-white font-bold text-[14.5px] rounded-xl shadow-lg hover:shadow-[#118B95]/30 hover:from-[#2AA7B3] hover:to-[#118B95] active:scale-[0.98] transition-all duration-150 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
         >
           {isSubmitting ? (
             <>

@@ -51,7 +51,7 @@ export default function Register() {
 
   return (
     // Added 'relative' here so the absolute Toast notification aligns correctly
-    <div className="flex min-h-screen font-sans bg-indigo-50 relative">
+    <div className="flex min-h-screen font-sans bg-[#E6F5F6] relative">
 
       {/* ── Floating Success Toast Notification ── */}
       {success && (
@@ -182,7 +182,7 @@ export default function Register() {
 
           {/* Header */}
           <div className="mb-7">
-            <span className="inline-block text-[12px] font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full mb-3 tracking-wide">
+            <span className="inline-block text-[12px] font-semibold text-[#118B95] bg-[#E6F5F6] px-3 py-1 rounded-full mb-3 tracking-wide">
               🔒 Closed Workspace
             </span>
             <h2 className="text-[26px] font-bold text-indigo-950 tracking-tight leading-tight mb-1.5">
@@ -278,9 +278,9 @@ export default function Register() {
           {/* Terms */}
           <p className="mt-4 text-[12px] text-gray-400 text-center leading-relaxed">
             By creating an account, you agree to our{' '}
-            <a href="#" className="text-indigo-500 hover:underline">Terms of Service</a>
+            <a href="#" className="text-[#2AA7B3] hover:underline">Terms of Service</a>
             {' '}and{' '}
-            <a href="#" className="text-indigo-500 hover:underline">Privacy Policy</a>.
+            <a href="#" className="text-[#2AA7B3] hover:underline">Privacy Policy</a>.
           </p>
 
           {/* Divider */}
@@ -293,7 +293,7 @@ export default function Register() {
           {/* Sign in prompt */}
           <p className="text-center text-[13.5px] text-gray-500 font-medium">
             Already have an account?{' '}
-            <Link to="/login" className="text-indigo-600 font-bold hover:underline ml-0.5">
+            <Link to="/login" className="text-[#118B95] font-bold hover:underline ml-0.5">
               Sign in
             </Link>
           </p>
